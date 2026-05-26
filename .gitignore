@@ -1,0 +1,12 @@
+# Carpetas de compilación y salida (No se versionan)
+build/
+dist/
+debug/
+disassembly/
+
+# Archivos generados por el usuario/sistema local dentro de nbproject
+nbproject/private/
+
+# Archivos de respaldo que genera MPLAB al guardar
+*~
+*.bak
