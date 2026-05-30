@@ -1,12 +1,14 @@
 # TP Final — Digital 2
 ## Sistema de Seguridad para Sierra de Banco
-**PIC16F887 — Assembly**
+**PIC16F887 — Assembly | Cristal externo 4 MHz**
 
 ---
 
 ## 1. Descripción general
 
-Sistema embebido que detecta la proximidad de una mano a la hoja de sierra mediante un sensor ultrasónico. Si la distancia cae por debajo de un umbral configurable, corta la alimentación del motor. El umbral se ajusta con un potenciómetro (ADC). Un botón de parada de emergencia actúa por interrupción de alta prioridad. El estado del sistema se reporta por UART al PC, y el PC puede enviar comandos de control.
+Sistema embebido que detecta la proximidad de una mano a la hoja de sierra mediante un sensor ultrasónico. Si la distancia cae por debajo de un umbral configurable, detiene el motor DC seteando el PWM a 0% vía CCP1. El umbral se ajusta con un potenciómetro (ADC) y se muestra en dos displays de 7 segmentos. Un botón de emergencia actúa por INT0. El estado se reporta por UART a la PC, que también puede enviar comandos de control.
+
+
 
 ---
 
@@ -20,6 +22,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 | RU-04 | El estado actual (distancia, motor ON/OFF) debe visualizarse desde la PC. |
 | RU-05 | Desde la PC se debe poder reanudar el motor luego de un paro de emergencia. |
 | RU-06 | Dos LEDs deben indicar visualmente si el sistema está en modo seguro o en operación. |
+| RU-07 | Dos displays de 7 segmentos deben mostrar el umbral de corte actual en centímetros. |
 
 ---
 
@@ -30,15 +33,17 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 | ID | Requisito |
 |----|-----------|
 | RS-F01 | El PIC mide la distancia con HC-SR04 vía pulso TRIG/ECHO. |
-| RS-F02 | Timer1 mide el ancho del pulso ECHO por overflow/captura. |
-| RS-F03 | Timer0 genera ciclos periódicos (~100 ms) para disparar una nueva medición. |
+| RS-F02 | Timer1 mide el ancho del pulso ECHO por polling. |
+| RS-F03 | Timer0 genera ciclos periódicos de ~10 ms para el multiplexado; cada 10 ciclos dispara una medición. |
 | RS-F04 | El módulo ADC lee el canal AN0 (potenciómetro) para obtener el umbral de distancia. |
-| RS-F05 | Si `distancia_medida < umbral_ADC`, el pin de control del relay se pone en bajo (motor OFF). |
+| RS-F05 | Si `distancia_medida < umbral`, el módulo CCP1 setea duty cycle = 0% (motor OFF). |
 | RS-F06 | INT0 (RB0) atiende el botón de emergencia con máxima prioridad. |
 | RS-F07 | La USART envía por TX el estado del sistema (distancia, umbral, estado motor) en ASCII. |
 | RS-F08 | La USART recibe por RX comandos desde PC: `'R'` = reanudar, `'P'` = parar. |
 | RS-F09 | El LED verde (RD0) indica motor activo; el LED rojo (RD1) indica motor detenido/emergencia. |
 | RS-F10 | El sistema arranca con el motor apagado (estado seguro por defecto). |
+| RS-F11 | El umbral de corte se muestra en dos displays de 7 segmentos multiplexados (decenas/unidades). |
+| RS-F12 | Los displays se refrescan desde la ISR del Timer0 mediante multiplexado por software. |
 
 ### 3.2 No funcionales
 
@@ -48,8 +53,9 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 | RS-NF02 | El código debe estar en Assembly para PIC16F887. |
 | RS-NF03 | La comunicación UART debe ser a 9600 bps, 8N1. |
 | RS-NF04 | El sistema debe operar con 5 V de alimentación. |
-| RS-NF05 | El relay debe ser el único actuador que interactúa con la línea de alimentación del motor (aislación). |
+| RS-NF05 | El control del motor se realiza por PWM vía CCP1 (RC2) y transistor NPN. |
 | RS-NF06 | Toda la lógica de seguridad (corte) debe ejecutarse dentro de ISRs, no en el bucle principal. |
+| RS-NF07 | La frecuencia de refresco de los displays debe ser ≥ 50 Hz total (≥ 25 Hz por dígito). |
 
 ---
 
@@ -63,9 +69,9 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** detectar si una mano se acerca a la hoja.
 
 **Criterios de aceptación:**
-- Timer0 genera una interrupción cada ~100 ms.
-- En cada interrupción se envía un pulso TRIG de 10 µs al sensor.
-- Timer1 mide el ancho del pulso ECHO en µs.
+- Timer0 genera una interrupción cada ~10 ms; la medición ocurre cada 10 interrupciones.
+- En cada ciclo de 100 ms se envía un pulso TRIG de 10 µs al sensor.
+- Timer1 mide el ancho del pulso ECHO en µs por polling.
 - La distancia en cm se calcula como `ECHO_us / 58`.
 
 ---
@@ -76,7 +82,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** no depender de reaccionar a tiempo.
 
 **Criterios de aceptación:**
-- Si `distancia < umbral`, el pin RC2 (relay) se pone en bajo.
+- Si `distancia < umbral`, `CCPR1L = 0x00` (PWM duty = 0%, motor OFF).
 - El corte ocurre dentro de la ISR o inmediatamente al salir de ella.
 - El LED rojo enciende y el verde apaga.
 
@@ -88,9 +94,10 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** adaptarlo al tipo de trabajo.
 
 **Criterios de aceptación:**
-- AN0 se lee cada ciclo junto con la medición del HC-SR04.
-- El valor del ADC (0–255) se mapea a un rango de distancia (ej: 5–25 cm).
+- AN0 se lee cada ciclo de 100 ms.
+- El valor del ADC (0–255) se mapea al rango 5–25 cm.
 - El umbral activo se usa en la comparación con la distancia medida.
+- El umbral actualizado se refleja en los displays en el mismo ciclo.
 
 ---
 
@@ -100,9 +107,9 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** reaccionar ante cualquier situación inesperada.
 
 **Criterios de aceptación:**
-- INT0 (RB0) está configurada como interrupción por flanco descendente.
-- La ISR de INT0 apaga el relay, activa el LED rojo y marca una bandera `EMERGENCY`.
-- Mientras `EMERGENCY` esté activa, el motor no puede reiniciarse desde el hardware local.
+- INT0 (RB0) configurada por flanco descendente.
+- La ISR de INT0 setea `CCPR1L = 0x00`, activa LED rojo y marca `FLAG_EMERGENCY`.
+- Mientras `FLAG_EMERGENCY` esté activa, el motor no puede reiniciarse localmente.
 
 ---
 
@@ -112,9 +119,8 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** verificar su funcionamiento.
 
 **Criterios de aceptación:**
-- Cada ciclo (~100 ms) el PIC envía por UART una línea como: `D:12cm U:08cm M:ON\r\n`
-- El envío usa la USART en modo polling o por interrupción TX.
-- Los datos son legibles en cualquier terminal serie (9600 8N1).
+- Cada 100 ms el PIC envía: `D:12cm U:08cm M:ON\r\n`
+- Legible en cualquier terminal serie (9600 8N1).
 
 ---
 
@@ -124,21 +130,59 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** probar el sistema sin intervención física.
 
 **Criterios de aceptación:**
-- El PIC recibe caracteres por RX: `'R'` reanuda el motor (si no hay obstrucción), `'P'` lo detiene.
-- La recepción UART limpia la bandera `EMERGENCY` solo si el comando es `'R'` y no hay proximidad activa.
+- `'R'` reanuda el motor si no hay obstrucción activa ni emergencia.
+- `'P'` para el motor y activa `FLAG_EMERGENCY`.
 - Cualquier otro carácter es ignorado.
 
 ---
 
 ### HU-07 — Indicación visual de estado
 **Como** operario,  
-**quiero** saber de un vistazo si el sistema está en modo operación o detenido,  
+**quiero** saber de un vistazo si el sistema está operando o detenido,  
 **para** no necesitar mirar la PC.
 
 **Criterios de aceptación:**
-- LED verde (RD0): motor activo y sin alarma.
+- LED verde (RD0): motor activo.
 - LED rojo (RD1): motor detenido por proximidad o emergencia.
-- Los LEDs son mutuamente excluyentes (nunca ambos activos).
+- Mutuamente excluyentes.
+
+---
+
+### HU-08 — Display del umbral de corte
+**Como** operario,  
+**quiero** ver en los displays el umbral de distancia configurado,  
+**para** saber a qué distancia se activará el corte sin mirar la PC.
+
+**Criterios de aceptación:**
+- Displays muestran umbral en cm (00–25), decenas a la izquierda.
+- Se actualiza cada ciclo de 100 ms.
+- Sin parpadeo visible (refresco ≥ 25 Hz por dígito).
+
+---
+
+### HU-09 — Rutina de multiplexado de displays
+**Como** desarrollador,  
+**quiero** una rutina de refresco llamada desde la ISR del Timer0,  
+**para** mantener los displays activos sin bloquear el programa principal.
+
+**Criterios de aceptación:**
+- Cada llamada alterna el dígito activo con flag `DISP_SEL`.
+- Apaga ambos selectores antes de cambiar el bus (anti-ghosting).
+- Usa tabla lookup `BCD_7SEG` en program memory.
+- El umbral se convierte a BCD antes de llamar a la rutina.
+
+---
+
+### HU-10 — Control PWM del motor
+**Como** desarrollador,  
+**quiero** controlar el motor por PWM vía CCP1,  
+**para** usar el hardware del PIC y dejar infraestructura para control de velocidad futuro.
+
+**Criterios de aceptación:**
+- CCP1 configurado en modo PWM con Timer2.
+- Motor ON: `CCPR1L = 0xFF` (100% duty).
+- Motor OFF: `CCPR1L = 0x00` (0% duty).
+- RC2 configurado como salida antes de habilitar CCP1.
 
 ---
 
@@ -146,11 +190,11 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 
 ```
 INICIO
-  └─► Configurar oscilador, puertos, UART, ADC, Timer0, Timer1, INT0
-  └─► Motor OFF, LED rojo ON
+  └─► Configurar puertos, ADC, UART, PWM/CCP1, Timer0, Timer1, INT0
+  └─► CCPR1L = 0x00 (motor OFF), LED rojo ON, displays en "00"
   └─► Habilitar interrupciones globales
   └─► LOOP PRINCIPAL
-        └─► ¿Bandera TX lista? → Enviar trama UART
+        └─► ¿FLAG_TX? → Enviar trama UART
         └─► GOTO LOOP
 ```
 
@@ -161,24 +205,29 @@ INICIO
 ```
 ISR DESPACHADOR
   ├─► ¿INT0 flag? → ISR_EMERGENCIA
-  ├─► ¿TMR0 flag? → ISR_CICLO
-  └─► ¿TMR1 flag? → ISR_ECHO
+  └─► ¿TMR0 flag? → ISR_CICLO
 
 ISR_EMERGENCIA
-  └─► Relay OFF → LED rojo ON → Set EMERGENCY → Retornar
+  └─► CCPR1L=0 → LED rojo ON → Set FLAG_EMERGENCY → Retornar
 
-ISR_CICLO (cada ~100 ms)
+ISR_CICLO (cada ~10 ms)
   └─► Relanzar Timer0
-  └─► Leer ADC (AN0) → calcular umbral
-  └─► Enviar pulso TRIG 10 µs al HC-SR04
-  └─► Arrancar Timer1
-  └─► Set bandera TX → Retornar
+  └─► RUTINA_DISPLAY (alternar dígito)
+  └─► Incrementar CICLO_CNT
+  └─► ¿CICLO_CNT == 10?
+        └─► Reset CICLO_CNT
+        └─► Leer ADC → calcular umbral → BCD
+        └─► TRIG 10 µs → polling ECHO → calcular distancia
+        └─► ¿distancia < umbral?
+              ├── SÍ → CCPR1L=0x00, LED rojo ON, LED verde OFF
+              └── NO → CCPR1L=0xFF, LED verde ON, LED rojo OFF
+        └─► Set FLAG_TX
+  └─► Retornar
 
-ISR_ECHO (overflow/captura Timer1)
-  └─► Capturar tiempo ECHO
-  └─► Calcular distancia = ECHO_us / 58
-  └─► ¿distancia < umbral? → Relay OFF, LED rojo
-                            → Relay ON, LED verde
+RUTINA_DISPLAY
+  └─► Apagar RE0 y RE1
+  └─► ¿DISP_SEL==0? → cargar decenas → PORTD → RE0 ON → DISP_SEL=1
+                    → cargar unidades → PORTD → RE1 ON → DISP_SEL=0
   └─► Retornar
 ```
 
@@ -188,52 +237,96 @@ ISR_ECHO (overflow/captura Timer1)
 
 | Pin PIC | Función | Componente |
 |---------|---------|------------|
-| RB0/INT0 | Interrupción externa | Botón de emergencia |
+| RA0/AN0 | ADC input | Potenciómetro |
+| RB0/INT0 | INT externa | Botón emergencia |
 | RC0 | TRIG output | HC-SR04 |
 | RC1 | ECHO input | HC-SR04 |
-| RC2 | Relay control | Relay → Motor |
+| RC2/CCP1 | PWM output | Base TIP31C → Motor DC |
 | RC6/TX | UART TX | PC (RX) |
 | RC7/RX | UART RX | PC (TX) |
-| RA0/AN0 | ADC input | Potenciómetro |
 | RD0 | LED verde | Estado OK |
 | RD1 | LED rojo | Estado alarma |
+| RD2–RD7 | Segmentos a–f | Ambos displays (bus compartido) |
+| RE0 | Selector decenas | BC547 → cátodo display |
+| RE1 | Selector unidades | BC547 → cátodo display |
 
 ---
 
 ## Anexo D — Conexión hardware (esquema simplificado)
 
 ```
-                          PIC16F887
-                    ┌─────────────────┐
-   POT ────────────►│RA0/AN0          │
-                    │                 │
-   TRIG ◄───────────│RC0           RD0│──── LED Verde
-   ECHO ────────────►│RC1           RD1│──── LED Rojo
-                    │                 │
-   BTN_EMG ─────────►│RB0/INT0      RC2│──── Relay ──► Motor
-                    │                 │
-   PC_RX ◄───────────│RC6/TX          │
-   PC_TX ────────────►│RC7/RX          │
-                    └─────────────────┘
+                             PIC16F887
+                    ┌──────────────────────┐
+   POT ────────────►│RA0/AN0               │
+                    │                      │
+   TRIG ◄───────────│RC0               RD0 │──── LED Verde
+   ECHO ────────────►│RC1               RD1 │──── LED Rojo
+                    │                      │
+   BTN_EMG ─────────►│RB0/INT0    RC2/CCP1 │──[1kΩ]── Base TIP31C
+                    │                      │          Colector → Motor DC
+   PC_RX ◄───────────│RC6/TX        RD2–D7 │──┐       Emisor → GND
+   PC_TX ────────────►│RC7/RX            RE0│──┤── BC547 sel decenas
+                    │                  RE1 │──┘── BC547 sel unidades
+                    └──────────────────────┘
 
-HC-SR04:  VCC=5V, GND, TRIG=RC0, ECHO=RC1
-Relay:    IN=RC2, VCC=5V, GND (carga separada)
-UART:     Adaptador USB-TTL a 9600 8N1
+Motor DC:   5V entre VCC y colector TIP31C. Diodo 1N4007 en paralelo (flyback).
+Displays:   Cátodo común. 330Ω en serie con cada segmento.
+HC-SR04:    VCC=5V, GND, TRIG=RC0, ECHO=RC1.
+UART:       Adaptador USB-TTL, 9600 8N1.
 ```
 
 ---
 
-## Anexo E — Configuración de registros clave
+## Anexo E — Tabla BCD a 7 segmentos
+
+Orden `gfedcba`, cátodo común, activo en alto.
+
+| Dígito | Hex  |
+|--------|------|
+| 0 | 0x3F |
+| 1 | 0x06 |
+| 2 | 0x5B |
+| 3 | 0x4F |
+| 4 | 0x66 |
+| 5 | 0x6D |
+| 6 | 0x7D |
+| 7 | 0x07 |
+| 8 | 0x7F |
+| 9 | 0x6F |
+
+```asm
+BCD_7SEG:
+    ADDWF   PCL, F
+    RETLW   0x3F    ; 0
+    RETLW   0x06    ; 1
+    RETLW   0x5B    ; 2
+    RETLW   0x4F    ; 3
+    RETLW   0x66    ; 4
+    RETLW   0x6D    ; 5
+    RETLW   0x7D    ; 6
+    RETLW   0x07    ; 7
+    RETLW   0x7F    ; 8
+    RETLW   0x6F    ; 9
+```
+
+---
+
+## Anexo F — Configuración de registros clave
 
 | Registro | Valor | Descripción |
 |----------|-------|-------------|
-| OSCCON |  | No usamos osc interno |
 | ADCON0 | `0x01` | Canal AN0, ADC ON |
 | ADCON1 | `0x80` | Justificado a derecha, Vref=VDD |
-| OPTION_REG | `0x07` | Timer0, prescaler 1:256 |
-| T1CON | `0x01` | Timer1 ON, prescaler 1:1 |
-| TXSTA | `0x24` | UART TX habilitado, async, alta vel. |
-| RCSTA | `0x90` | UART RX habilitado, serial port ON |
-| SPBRG | `0x19` | 9600 bps a 4 MHz con BRGH=1 |
-| INTCON | `0xA0` | GIE=1, PEIE=0, TMR0IE=1 |
-| INTCON2 | `0x40` | INT0 por flanco descendente |
+| OPTION_REG | `0x04` | Timer0, prescaler 1:32 (~10 ms) |
+| T1CON | `0x01` | Timer1 ON, prescaler 1:1 (1 tick = 1 µs) |
+| T2CON | `0x04` | Timer2 ON, prescaler 1:1 (base PWM) |
+| PR2 | `0xFF` | Periodo PWM (~3.9 kHz a 4 MHz) |
+| CCP1CON | `0x0C` | Modo PWM |
+| CCPR1L | `0x00`/`0xFF` | Duty 0% / 100% |
+| TXSTA | `0x24` | UART TX, async, BRGH=1 |
+| RCSTA | `0x90` | UART RX, serial port ON |
+| SPBRG | `0x19` | 9600 bps a 4 MHz |
+| INTCON | `0xB0` | GIE=1, TMR0IE=1, INTE=1 |
+| TRISC | `0xC2` | RC2 salida (CCP1), RC6 salida (TX), RC7 entrada (RX), RC1 entrada (ECHO) |
+| TRISD | `0x03` | RD2–RD7 salidas (seg), RD0–RD1 salidas (LEDs) |
+| TRISE | `0x00` | RE0, RE1 salidas (selectores display) |
