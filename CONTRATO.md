@@ -64,7 +64,7 @@ BCD_7SEG:
 |----------|-------|-------------------|
 | ADCON0 | `0x01` | HU-03 |
 | ADCON1 | `0x80` | HU-03 |
-| OPTION_REG | `0x04` (Timer0 prescaler 1:32) | HU-03 |
+| OPTION_REG | `0x05` (Timer0 prescaler 1:64) | HU-03 |
 | T1CON | `0x01` (Timer1 ON, 1:1) | HU-01 |
 | T2CON | `0x04` (Timer2 ON, 1:1) | HU-02 |
 | PR2 | `0xFF` | HU-02 |

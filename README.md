@@ -172,7 +172,7 @@ sequenceDiagram
     PIC->>TMR1: TMR1 = 0, arrancar
     SR04->>PIC: ECHO baja
     PIC->>TMR1: detener, leer TMR1H:TMR1L
-    PIC->>PIC: distancia = ticks / 58
+    PIC->>PIC: distancia = ticks × 9 / 512
     PIC->>PIC: comparar con umbral ADC
     PIC->>PIC: CCPR1L = 0x00 ó 0xFF
 ```
@@ -192,7 +192,7 @@ MOVWF   ADCON0
 
 ; --- Timer0: ~10 ms a 4 MHz ---
 BANKSEL OPTION_REG
-MOVLW   0x04        ; prescaler 1:32
+MOVLW   0x05        ; prescaler 1:64
 MOVWF   OPTION_REG
 
 ; --- Timer1: medición ECHO ---
@@ -228,7 +228,7 @@ BCF     OPTION_REG, INTEDG  ; INT0 por flanco descendente
 |----------|-------|-------------|
 | ADCON0 | `0x01` | Canal AN0, ADC ON |
 | ADCON1 | `0x80` | Justificado a derecha, Vref=VDD |
-| OPTION_REG | `0x04` | Timer0, prescaler 1:32 (~10 ms) |
+| OPTION_REG | `0x05` | Timer0, prescaler 1:64 (~10 ms) |
 | T1CON | `0x01` | Timer1 ON, prescaler 1:1 |
 | T2CON | `0x04` | Timer2 ON, prescaler 1:1 |
 | PR2 | `0xFF` | Periodo PWM |

@@ -25,12 +25,10 @@
 
 Cristal 4 MHz → ciclo de instrucción = 1 µs (Fosc/4).
 
-- `OPTION_REG = 0x04`: prescaler 1:32 asignado a Timer0
-- Timer0 cuenta de 0 a 255, cada tick = 32 µs
-- 256 × 32 µs = 8.192 ms por overflow
-- Para 10 ms exactos: cargar TMR0 con 6 al inicio y en cada ISR
-  - (256 - 6) × 32 µs = 250 × 32 µs = 8 ms... mejor calcular bien
-  - Alternativa: probar con TMR0 = 0 y prescaler 1:32 (8.192 ms), es suficiente
+- `OPTION_REG = 0x05`: prescaler 1:64 asignado a Timer0
+- Timer0 cuenta de 0 a 255, cada tick = 64 µs
+- (256 - 100) × 64 µs = 156 × 64 µs = 9.984 µs ≈ 10 ms
+- Cargar TMR0 con 100 al inicio y en cada ISR
 
 ### Paso 4 — Implementar ISR Timer0
 
@@ -84,7 +82,7 @@ La tabla `BCD_7SEG` ya está en el esqueleto.
 
 ### Paso 2 — Configurar Timer0 para ciclo de 100ms
 
-Misma base que HU-03: Timer0 con prescaler 1:32.
+Misma base que HU-03: Timer0 con prescaler 1:64.
 La ISR incrementa `CICLO_CNT`. Cuando llega a 10 (100ms), dispara medición.
 
 ### Paso 3 — Configurar Timer1 para medir ECHO
@@ -115,8 +113,8 @@ Secuencia:
    - Leer `TMR1H:TMR1L`
 
 4. **Calcular distancia**:
-   - `distancia_cm = ticks / 58`
-   - Implementar división por resta sucesiva (el dividendo máximo es ~15000 para 2.5m)
+   - `dist_cm = (ticks × 9) / 512` — división por shift (±1 cm error)
+   - Multiplicar ticks × 9 (3 shifts + resta), luego dividir por 512 (9 shifts a la derecha)
    - O usar una tabla lookup si alcanza en memoria de programa
    - Si timeout (TMR1IF): `DIST_CM = 0xFF`
 

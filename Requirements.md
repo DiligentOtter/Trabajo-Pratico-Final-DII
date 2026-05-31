@@ -317,7 +317,7 @@ BCD_7SEG:
 |----------|-------|-------------|
 | ADCON0 | `0x01` | Canal AN0, ADC ON |
 | ADCON1 | `0x80` | Justificado a derecha, Vref=VDD |
-| OPTION_REG | `0x04` | Timer0, prescaler 1:32 (~10 ms) |
+| OPTION_REG | `0x05` | Timer0, prescaler 1:64 (~10 ms) |
 | T1CON | `0x01` | Timer1 ON, prescaler 1:1 (1 tick = 1 µs) |
 | T2CON | `0x04` | Timer2 ON, prescaler 1:1 (base PWM) |
 | PR2 | `0xFF` | Periodo PWM (~3.9 kHz a 4 MHz) |
