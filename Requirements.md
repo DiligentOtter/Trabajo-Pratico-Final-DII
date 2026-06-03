@@ -63,7 +63,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 
 ---
 
-### HU-01 — Detección de proximidad
+### HU-01 — Detección de proximidad (COMPLETADA)
 **Como** sistema de seguridad,  
 **quiero** medir la distancia con el HC-SR04 cada 100 ms,  
 **para** detectar si una mano se acerca a la hoja.
@@ -88,7 +88,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 
 ---
 
-### HU-03 — Umbral ajustable por ADC
+### HU-03 — Umbral ajustable por ADC (TESTING)
 **Como** operario,  
 **quiero** configurar a qué distancia se activa el corte,  
 **para** adaptarlo al tipo de trabajo.
