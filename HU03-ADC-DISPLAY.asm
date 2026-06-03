@@ -5,17 +5,27 @@
     __CONFIG _CONFIG1, _FOSC_HS & _WDTE_OFF & _PWRTE_ON & _MCLRE_ON & _LVP_OFF
     __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
 
-    ;Variables 
+    ; --- Mapa de RAM segun CONTRATO.md ---
+    ; HU-03 es dueno de UMBRAL_*, DISP_SEL.
+    ; Las demas se declaran solo para que el archivo sea autocontenido
+    ; en simulacion standalone; al integrar se centraliza en un unico
+    ; archivo de variables.
     CBLOCK 0x20
+        DIST_CM         ; 0x20  - HU-01 escribe, HU-02 lee
+        UMBRAL_CM       ; 0x21  - HU-03 escribe, HU-02 lee
+        UMBRAL_DEC      ; 0x22  - HU-03 - decena del umbral
+        UMBRAL_UNI      ; 0x23  - HU-03 - unidad del umbral
+        DISP_SEL        ; 0x24  - HU-03 - selector display (bit0)
+        CICLO_CNT       ; 0x25  - HU-01 - contador ciclos Timer0
+        FLAGS           ; 0x26  - compartido
+        TEMP            ; 0x27  - HU-03 - auxiliar para division
+        ADC_RES         ; 0x28  - HU-03 - raw ADC (justificado derecha)
+    ENDC
+
+    ; --- Backup de contexto para ISR (zona alta, sin colision) ---
+    CBLOCK 0x7D
         W_TEMP
         STATUS_TEMP
-        CICLO_CNT
-	TEMP
-        UMBRAL_CM       ; 1 byte  ? resultado ADC mapeado a cm
-        UMBRAL_DEC      ; 1 byte  ? dígito decenas
-        UMBRAL_UNI      ; 1 byte  ? dígito unidades
-        DISP_SEL        ; 1 byte  ? flag selector (bit0: 0=dec, 1=uni)
-        ADC_RES         ; 1 byte  ? raw del ADC (justificado izq)
     ENDC
 
     ;Vector Reset 
@@ -35,7 +45,7 @@ MAIN
     MOVLW b'00000001'
     MOVWF TRISA
     
-   CLRF TRISD
+    CLRF TRISD
     
     BCF TRISE,0
     BCF TRISE,1
@@ -52,13 +62,13 @@ MAIN
     BSF STATUS,RP0            ;BANCO 1
     BCF STATUS,RP1
     
-    MOVLW b'00000000'
+    MOVLW 0x80        ; ADFM=1: justificado a derecha, Vref=VDD
     MOVWF ADCON1
     
     BCF STATUS,RP0         ;BANCO 0
     BCF STATUS,RP1
     
-    MOVLW b'01000001'
+    MOVLW 0x41        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
     MOVWF ADCON0
     
     ;Conf. option_reg
@@ -75,7 +85,7 @@ MAIN
     MOVLW .100
     MOVWF TMR0
     
-    ;Inicialización de displays apagados y variables
+    ;Inicializaciï¿½n de displays apagados y variables
     CLRF PORTE
     CLRF PORTD
     CLRF CICLO_CNT
@@ -86,7 +96,7 @@ MAIN
     CLRF DISP_SEL
     CLRF ADC_RES
  
-    ;Habilitación de interrupciones
+    ;Habilitaciï¿½n de interrupciones
     MOVLW b'10110000'
     MOVWF INTCON
     
@@ -114,15 +124,15 @@ ISR_TIMER0
     GOTO NO_ADC
     CLRF CICLO_CNT
     
-    ;Inicialización de la conversión
+    ;Inicializaciï¿½n de la conversiï¿½n
     BSF ADCON0,GO
 
 ESPERA_ADC
     BTFSC ADCON0,GO
     GOTO ESPERA_ADC
 
-    ;Lectura del resultado
-    MOVF ADRESH,W
+    ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
+    MOVF ADRESL,W
     MOVWF ADC_RES
     
     ;UMBRAL_CM = 5 + (ADC_RES/13)
@@ -143,7 +153,7 @@ DIV13
 
 FIN_DIV13
     
-    ;Conversión a BCD
+    ;Conversiï¿½n a BCD
     CLRF UMBRAL_DEC
 
     MOVF UMBRAL_CM,W

@@ -45,7 +45,7 @@ MAIN:
     BSF TRISC,1
     
     ; 2. Configurar Timer0 para ~10ms e interrupciones
-    ;    - OPTION_REG = 0x04 (prescaler 1:64), 156 x 64 aprox 10000 us
+    ;    - OPTION_REG = 0x05 (prescaler 1:64), 156 x 64 aprox 10000 us
     ;    - TMR0 = 100 (para ~10ms)
     ;    - INTCON = 0xB0 (GIE=1, T0IE=1, INTE=1)
     ; TODO HECHO
@@ -122,20 +122,21 @@ MEDIR_HCSR04:
     ; Esperar ~10µs (NOPs o loop corto)
     ; BCF PORTC, RC0
     ; TODO
-    MOVLW .6
+    MOVLW .2              ; ~9us con prescaler 1:1 a 4MHz
     MOVWF CONT_DELAY
     BSF PORTC,0
 DELAY_10US
     DECF CONT_DELAY
     BTFSS STATUS,Z
     GOTO DELAY_10US
+    BCF PORTC,0           ; fin del pulso TRIG
     
     ; --- PASO 2: Esperar que ECHO suba (con timeout) ---
     ; Polling de RC1, esperando que pase a 1
     ; Si pasa demasiado tiempo (~1ms), abortar
     
 ESPERAR_ECHO
-    MOVLW   .250        ; ~1ms timeout
+    MOVLW   .170        ; ~1ms timeout (1020us a 4MHz)
     MOVWF   CONT_DELAY
 ESPERAR_ECHO_LOOP
     BTFSC   PORTC,RC1
