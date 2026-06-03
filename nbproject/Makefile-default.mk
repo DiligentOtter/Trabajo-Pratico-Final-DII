@@ -57,17 +57,17 @@ OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 DISTDIR=dist/${CND_CONF}/${IMAGE_TYPE}
 
 # Source Files Quoted if spaced
-SOURCEFILES_QUOTED_IF_SPACED=
+SOURCEFILES_QUOTED_IF_SPACED=HU01-HCSR04.asm
 
 # Object Files Quoted if spaced
-OBJECTFILES_QUOTED_IF_SPACED=
-POSSIBLE_DEPFILES=
+OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/HU01-HCSR04.o
+POSSIBLE_DEPFILES=${OBJECTDIR}/HU01-HCSR04.o.d
 
 # Object Files
-OBJECTFILES=
+OBJECTFILES=${OBJECTDIR}/HU01-HCSR04.o
 
 # Source Files
-SOURCEFILES=
+SOURCEFILES=HU01-HCSR04.asm
 
 
 
@@ -95,7 +95,23 @@ MP_LINKER_DEBUG_OPTION=
 # ------------------------------------------------------------------------------------
 # Rules for buildStep: assemble
 ifeq ($(TYPE_IMAGE), DEBUG_RUN)
+${OBJECTDIR}/HU01-HCSR04.o: HU01-HCSR04.asm  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}" 
+	@${RM} ${OBJECTDIR}/HU01-HCSR04.o.d 
+	@${RM} ${OBJECTDIR}/HU01-HCSR04.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/HU01-HCSR04.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -d__DEBUG -d__MPLAB_DEBUGGER_SIMULATOR=1 -q -p$(MP_PROCESSOR_OPTION)  -l\"${OBJECTDIR}/HU01-HCSR04.lst\" -e\"${OBJECTDIR}/HU01-HCSR04.err\" $(ASM_OPTIONS)    -o\"${OBJECTDIR}/HU01-HCSR04.o\" \"HU01-HCSR04.asm\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/HU01-HCSR04.o"
+	@${FIXDEPS} "${OBJECTDIR}/HU01-HCSR04.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+	
 else
+${OBJECTDIR}/HU01-HCSR04.o: HU01-HCSR04.asm  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}" 
+	@${RM} ${OBJECTDIR}/HU01-HCSR04.o.d 
+	@${RM} ${OBJECTDIR}/HU01-HCSR04.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/HU01-HCSR04.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -q -p$(MP_PROCESSOR_OPTION)  -l\"${OBJECTDIR}/HU01-HCSR04.lst\" -e\"${OBJECTDIR}/HU01-HCSR04.err\" $(ASM_OPTIONS)    -o\"${OBJECTDIR}/HU01-HCSR04.o\" \"HU01-HCSR04.asm\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/HU01-HCSR04.o"
+	@${FIXDEPS} "${OBJECTDIR}/HU01-HCSR04.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+	
 endif
 
 # ------------------------------------------------------------------------------------

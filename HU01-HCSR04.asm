@@ -1,9 +1,9 @@
-; ──────────────────────────────────────────────────────────────
+; ────────────────────────�
 ; HU-01 — Medición de distancia con HC-SR04
 ; Propósito: Enviar pulso TRIG, medir ancho ECHO con Timer1,
 ;            calcular distancia en cm.
 ; Responsable: Juan
-; ──────────────────────────────────────────────────────────────
+; ─────────────────────────
     LIST p=16F887
     #INCLUDE "P16F887.inc"
     RADIX HEX
@@ -12,7 +12,7 @@
     __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
 
 ; ─── Variables ───
-    CBLOCK 0x20 ; COMO FUNCIONA ESTE COMANDO 
+    CBLOCK 0x20 
         DIST_CM         ; 1 byte  — distancia calculada en cm
         CICLO_CNT       ; 1 byte  — contador para temporizar 100ms
         TMR1_H          ; 1 byte  — valor alto Timer1 (para depuración)
@@ -33,11 +33,10 @@
 ; =================================================================
 ; MAIN
 ; =================================================================
-MAIN:
+MAIN
     ; 1. Configurar puertos
     ;    - TRISC: RC0 como salida (TRIG), RC1 como entrada (ECHO)
     ;    - Inicializar RC0 = 0, RC1 como entrada
-    ; TODO
     BCF STATUS, RP1 ; BK1
     BSF STATUS, RP0
 
@@ -48,7 +47,7 @@ MAIN:
     ;    - OPTION_REG = 0x05 (prescaler 1:64), 156 x 64 aprox 10000 us
     ;    - TMR0 = 100 (para ~10ms)
     ;    - INTCON = 0xB0 (GIE=1, T0IE=1, INTE=1)
-    ; TODO HECHO
+    
     
     BANKSEL OPTION_REG
     MOVLW   0x05        ; prescaler 1:64 for Timer0
@@ -60,13 +59,15 @@ MAIN:
     ; 3. Configurar Timer1 para medir ECHO
     ;    - T1CON = 0x01 (Timer1 ON, prescaler 1:1, osc deshabilitado)
     ;    - 1 tick = 1 µs a 4 MHz
-    ; TODO 
-    MOVLW 0x01
-    MOVWF T1CON
+   
     
 
     BCF STATUS, RP0 ;BK0
-    
+    ; 3. Configurar Timer1 para medir ECHO
+    ;    - T1CON = 0x01 (Timer1 ON, prescaler 1:1, osc deshabilitado)
+    ;    - 1 tick = 1 µs a 4 MHz
+    MOVLW 0x01
+    MOVWF T1CON
     ; 4. Inicializar variables
     CLRF    DIST_CM
     CLRF    CICLO_CNT
@@ -79,18 +80,16 @@ MAIN:
     
 
 ; ─── LOOP principal ───
-LOOP:
+LOOP
     ; Cada 100ms se ejecuta la medición desde ISR.
-    ; Acá podrías poner un LED indicador o depuración.
     GOTO    LOOP
 
 
 ; =================================================================
 ; ISR Timer0 (~10ms)
 ; =================================================================
-ISR_TIMER0:
+ISR_TIMER0
     ; Guardar contexto (W y STATUS)
-    ; TODO
     CALL GUARDAR_CONTEXTO
     
 
@@ -107,21 +106,22 @@ ISR_TIMER0:
     BTFSS   STATUS, Z
     GOTO    RECUPERAR_CONTEXTO
 
-    ; ── Cada 10 ciclos (~100ms): medir distancia ──
+    ;Cada 10 ciclos (~100ms): medir distancia
     CLRF    CICLO_CNT
     CALL    MEDIR_HCSR04
     GOTO RECUPERAR_CONTEXTO
 
 
 ; =================================================================
-; MEDIR_HCSR04 — pulso TRIG + medición ECHO con Timer1
+; MEDIR_HCSR04 pulso TRIG + medicion ECHO con Timer1
 ; =================================================================
-MEDIR_HCSR04:
+MEDIR_HCSR04
     ; --- PASO 1: Enviar pulso TRIG de 10µs ---
     ; BSF PORTC, RC0
-    ; Esperar ~10µs (NOPs o loop corto)
+    ; Esperar ~10�s (NOPs o loop corto)
     ; BCF PORTC, RC0
     ; TODO
+    
     MOVLW .2              ; ~9us con prescaler 1:1 a 4MHz
     MOVWF CONT_DELAY
     BSF PORTC,0
@@ -138,16 +138,19 @@ DELAY_10US
 ESPERAR_ECHO
     MOVLW   .170        ; ~1ms timeout (1020us a 4MHz)
     MOVWF   CONT_DELAY
+    
 ESPERAR_ECHO_LOOP
     BTFSC   PORTC,RC1
     GOTO    ECHO_HIGH
     DECFSZ  CONT_DELAY,F
     GOTO    ESPERAR_ECHO_LOOP
+    
     ; Timeout - sensor disconnected
     MOVLW   0xFF
     MOVWF   DIST_CM
     GOTO    RECUPERAR_CONTEXTO
-ECHO_HIGH:
+    
+ECHO_HIGH
 
     ; --- PASO 3: Iniciar Timer1 y medir ancho del pulso ---
     ; Cuando ECHO = 1:
@@ -155,7 +158,6 @@ ECHO_HIGH:
     ;   Timer1 ya está ON (configurado en init)
     ;
     ; Polling hasta que ECHO = 0 o TMR1IF = 1 (timeout ~25ms)
-    ; TODO
     
     CLRF TMR1H
     CLRF TMR1L
@@ -166,11 +168,11 @@ ESPERAR_ECHO_BAJA
     BTFSC   PIR1, TMR1IF
     GOTO    ECHO_TIMEOUT
     GOTO    ESPERAR_ECHO_BAJA
-ECHO_TIMEOUT:
+ECHO_TIMEOUT
     MOVLW   0xFF
     MOVWF   DIST_CM
     GOTO    RECUPERAR_CONTEXTO
-ECHO_LOW:
+ECHO_LOW
 
     ; --- PASO 4: Calcular distancia ---
     ; Cuando ECHO baja (o timeout):
@@ -216,22 +218,22 @@ ECHO_LOW:
     RRF TMR1_H,1
     MOVF TMR1_H,0
     MOVWF DIST_CM
-
+    MOVWF PORTB
     GOTO RECUPERAR_CONTEXTO
 
 
 
 GUARDAR_CONTEXTO
     MOVWF W_TEMP
-    SWAPWF STATUS,0
+    SWAPF STATUS,0
     MOVWF STATUS_TEMP
     RETURN
     
 RECUPERAR_CONTEXTO
-    SWAPWF STATUS_TEMP,0
+    SWAPF STATUS_TEMP,0
     MOVWF STATUS
-    SWAPWF W_TEMP,1
-    SWAPWF W_TEMP,0
+    SWAPF W_TEMP,1
+    SWAPF W_TEMP,0
     RETFIE
 
     END
