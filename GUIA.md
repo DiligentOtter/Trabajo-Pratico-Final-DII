@@ -1,12 +1,262 @@
-# Guía de implementación — HUs 1 a 3
+# Guía de implementación — Proyecto Sierra Segura
 
-> Sin código. Pasos, registros, lógica. Cada HU se prueba standalone en simulador.
+> Pasos, registros y lógica para cada HU. **Las HUs 01/02/03 se conservan abajo marcadas como OBSOLETAS** porque su código terminó integrado en `tpFinal.asm`. Las HUs 04/05/06 se entregan como esqueletos standalone que luego se fusionan en `tpFinal.asm` siguiendo las notas de integración de cada archivo.
+
+> **Reglas de estilo** (aplican a todas las HUs nuevas y al integrado):
+> - UPPERCASE para labels, registros y constantes.
+> - `BANKSEL` antes de cualquier acceso cross-bank.
+> - Comentarios en español, una línea por bloque lógico.
+> - Guardar W y STATUS al entrar a ISR (`MOVWF W_TEMP` / `SWAPF STATUS,W` / `MOVWF STATUS_TEMP`) y restaurar antes de `RETFIE`.
+> - Subrutinas terminan en `RETURN`, ISRs en `RETFIE`.
+> - Flag `__CONFIG` y `CBLOCK` viven una sola vez (en `tpFinal.asm`). Al integrar, borrar los de la HU.
 
 ---
 
-## HU-03 — ADC + Display (Ari)
+## Índice
 
-**Archivo:** `HU03-ADC-DISPLAY.asm`
+- [HU-04 — Botón de emergencia (INT0)](#hu-04--botón-de-emergencia-int0) — **NUEVO**
+- [HU-05 — Monitoreo desde PC (UART TX)](#hu-05--monitoreo-desde-pc-uart-tx) — **NUEVO**
+- [HU-06 — Control desde PC (UART RX)](#hu-06--control-desde-pc-uart-rx) — **NUEVO**
+- [HU-03 — ADC + Display](#hu-03--adc--display) — *OBSOLETA (integrada en `tpFinal.asm`)*
+- [HU-01 — Medición HC-SR04](#hu-01--medición-hc-sr04) — *OBSOLETA (integrada en `tpFinal.asm`)*
+- [HU-02 — Corte automático](#hu-02--corte-automático) — *OBSOLETA (integrada en `tpFinal.asm`)*
+
+---
+
+## HU-04 — Botón de emergencia (INT0)
+
+**Archivo:** `HU04-EMERGENCIA.asm` (esqueleto standalone).
+
+**Propósito:** atender el pulsador físico de emergencia con la latencia más corta posible, cortar el motor, encender el LED rojo y marcar `FLAG_EMERGENCY`. La liberación es responsabilidad de HU-06 (vía `'R'` desde la PC).
+
+### Paso 1 — Configurar el pin
+
+- `TRISB, 0 = 1` → RB0 como entrada.
+- `OPTION_REG, INTEDG = 0` → flanco descendente (el pulsador normalmente está en alto y va a bajo al presionar).
+  - **Ojo:** el resto de `OPTION_REG` lo maneja HU-03 (prescaler de Timer0). Usar `BCF OPTION_REG, INTEDG` para no pisar el valor.
+
+### Paso 2 — Habilitar INT0
+
+- `INTCON = 0xD0` (GIE + PEIE + T0IE + INTE). **Importante:** el valor viejo era `0xB0`; el cambio agrega `PEIE=1` (bit 6), obligatorio para que las interrupciones de periféricos lleguen. Ver `CONTRATO.md`.
+
+### Paso 3 — Dispatcher de ISR con prioridad
+
+Orden de chequeo en el vector 0x04 (mientras `IPEN=0`, la prioridad es solo lógica, definida por el orden de los `BTFSS`):
+
+1. `INT0IF` (emergencia) — atender primero
+2. `RCIF` (UART RX) — atender segundo (HU-06)
+3. `T0IF` (Timer0) — flujo normal al final
+
+Pseudocódigo del dispatcher:
+
+```
+ISR_DISPATCHER:
+    guardar W y STATUS
+    recargar TMR0 con .100
+    BCF INTCON, T0IF
+
+    BTFSS INTCON, INT0IF
+    GOTO  CHECK_RCIF
+    CALL ISR_EMERGENCIA
+    GOTO  RECUPERAR_CONTEXTO
+
+CHECK_RCIF:
+    BTFSS PIR1, RCIF
+    GOTO  T0_NORMAL
+    CALL ISR_UART_RX          ; viene de HU-06
+    GOTO  RECUPERAR_CONTEXTO
+
+T0_NORMAL:
+    ; flujo de RUTINA_DISPLAY + ciclo 100ms (HU-01/02/03)
+    GOTO  RECUPERAR_CONTEXTO
+```
+
+### Paso 4 — `ISR_EMERGENCIA`
+
+Pasos obligatorios:
+
+1. `BCF INTCON, INT0IF` — limpiar flag (por si quedó pendiente).
+2. `CLRF CCPR1L` (con `BANKSEL` previo) → PWM 0%, motor OFF.
+3. `BCF PORTD, 0` / `BSF PORTD, 1` → LED verde OFF, rojo ON.
+4. `BSF FLAGS, 1` → `FLAG_EMERGENCY = 1`.
+5. `RETURN` (vuelve al dispatcher, que hace `RETFIE`).
+
+> **Detalle:** no es toggle. Si la mano sigue apretando el botón, el flag queda set y el motor sigue cortado. La liberación es **únicamente** por `'R'` desde la PC (HU-06), no por hardware.
+
+### Paso 5 — Integración en `tpFinal.asm`
+
+1. Borrar `__CONFIG` y `CBLOCK` de `HU04-EMERGENCIA.asm`.
+2. En `MAIN` de `tpFinal.asm`, agregar (en el bloque de Bank 1):
+   - `BSF TRISB, 0`
+   - `BCF OPTION_REG, INTEDG`
+3. Reemplazar el `INTCON = 0xB0` por `INTCON = 0xD0`.
+4. En el dispatcher (línea ~94 de `tpFinal.asm`, donde dice "Atender rutina de emergencia"), insertar el bloque de chequeo de INT0IF.
+5. Pegar `ISR_EMERGENCIA` al final del archivo, antes del `END`.
+
+### Prueba en simulador
+
+1. Cargar `HU04-EMERGENCIA.asm` standalone en MPLABX.
+2. Agregar un *pin stimulus* en RB0 con un pulso descendente de 100 µs.
+3. Poner breakpoint en la primera instrucción de `ISR_EMERGENCIA`.
+4. Verificar al detenerse:
+   - `INTCON, INT0IF = 0` (limpio)
+   - `CCPR1L = 0x00`
+   - `PORTD` bit 1 = 1, bit 0 = 0
+   - `FLAGS` bit 1 = 1
+5. Repetir el stim: el estado debe **permanecer** (es latch, no toggle).
+6. Limpiar manualmente `FLAGS, 1` + restaurar LEDs + `CCPR1L = 0xFF` para "liberar" en el test (en producción lo hace HU-06).
+
+---
+
+## HU-05 — Monitoreo desde PC (UART TX)
+
+**Archivo:** `HU05-UART-TX.asm` (esqueleto standalone).
+
+**Propósito:** emitir por UART, cada 100 ms, una trama ASCII con el estado del sistema para visualizar desde la PC.
+
+**Formato de trama (18 bytes):** `D:XXcm U:XXcm M:XX\r\n`
+
+- `D:XXcm` → distancia medida (`DIST_CM`, 0–99)
+- `U:XXcm` → umbral de corte (`UMBRAL_CM`, 5–25)
+- `M:XX` → estado del motor: `ON` (verde) o `OFF` (rojo)
+- `\r\n` → terminador CRLF (portable a cualquier terminal serie)
+
+### Paso 1 — Configurar UART
+
+```
+TRISC, 6 = 0   ; TX salida
+TRISC, 7 = 1   ; RX entrada (lo necesita HU-06 también)
+
+TXSTA  = 0x24  ; TXEN, BRGH=1, async, 8 bits
+SPBRG  = 0x19  ; 9600 bps @ 4 MHz con BRGH=1
+RCSTA  = 0x90  ; SPEN + CREN
+```
+
+> Verificación de timing: con Fosc = 4 MHz, BRGH = 1, SPBRG = 25 (`0x19`):
+> `Baud = Fosc / (16 × (SPBRG + 1)) = 4_000_000 / (16 × 26) ≈ 9615 bps`
+> Error: ~0.16 %, aceptable.
+
+### Paso 2 — Handshake con la ISR
+
+La ISR setea `FLAGS, 0` (`FLAG_TX = 1`) **una vez cada 100 ms** (no en cada interrupción de T0, sino cuando `CICLO_CNT == 10`). El main loop lo lee y llama a `ENVIAR_TRAMA`.
+
+```
+ISR (cada 100ms, al final del flujo de T0):
+    BSF FLAGS, 0      ; hay trama para enviar
+
+LOOP:
+    BTFSS FLAGS, 0
+    GOTO  LOOP
+    BCF   FLAGS, 0
+    CALL  ENVIAR_TRAMA
+    GOTO  LOOP
+```
+
+### Paso 3 — Subrutinas
+
+- **`TX_BYTE(W)`**: espera `TXSTA, TRMT = 1` y escribe `TXREG`. Destruye W si no se guarda antes (en el caller: `MOVWF TEMP`).
+- **`BIN_TO_ASCII_DECUNI(W)`**: convierte byte 0–99 a decenas en W y unidades en `TEMP`. Método: resta sucesiva de 10. Hay dos versiones en el archivo: una "simple" (que tiene un bug marcado de pisado de variable) y una "corregida" abajo. Usar la corregida.
+- **`ENVIAR_TRAMA`**: emite los 18 bytes en orden. Manda `'D'`, `':'`, `dist_dec`, `dist_uni`, `'c'`, `'m'`, `' '`, `'U'`, `':'`, `umb_dec`, `umb_uni`, `'c'`, `'m'`, `' '`, `'M'`, `':'`, `'O'`/`'F'`, `'N'`/`'F'`, `'\r'`, `'\n'`.
+
+### Paso 4 — Integración en `tpFinal.asm`
+
+1. Borrar `__CONFIG` y `CBLOCK` de `HU05-UART-TX.asm`.
+2. En `MAIN` de `tpFinal.asm`, agregar la configuración UART de la HU.
+3. En el `LOOP` actual (que hoy es un `GOTO LOOP` puro), insertar el chequeo de `FLAG_TX`.
+4. En la ISR, después de `CALL COMPARAR_Y_ACTUAR`, agregar `BSF FLAGS, 0`.
+5. Pegar `ENVIAR_TRAMA`, `TX_BYTE` y `BIN_TO_ASCII_DECUNI` al final del archivo.
+
+### Prueba en simulador
+
+1. Cargar `HU05-UART-TX.asm` standalone.
+2. Setear manualmente en RAM:
+   - `DIST_CM = .12`
+   - `UMBRAL_CM = .08`
+   - `FLAGS` bit 2 = 1 (motor ON)
+3. Abrir *Simulator > UART1 IO* (o el output de la UART en Proteus si se usa esa plataforma).
+4. Verificar que la trama `D:12cm U:08cm M:ON\r\n` sale byte por byte.
+5. Probar variantes:
+   - `DIST_CM=5, UMBRAL_CM=25, FLAGS bit 2=0` → `D:05cm U:25cm M:OFF\r\n`
+   - `DIST_CM=0` → `D:00cm U:08cm M:ON\r\n` (borde inferior)
+6. Si la trama sale mal, revisar primero `BIN_TO_ASCII_DECUNI` (el esqueleto tiene una versión con bug marcada).
+
+---
+
+## HU-06 — Control desde PC (UART RX)
+
+**Archivo:** `HU06-UART-RX.asm` (esqueleto standalone).
+
+**Propósito:** recibir comandos ASCII desde la PC y traducirlos a acciones sobre el sistema. Comandos soportados:
+
+| Byte | Acción |
+|------|--------|
+| `'R'` (`0x52`) | Limpia `FLAG_EMERGENCY`. Por decisión de diseño (los sensores actuales no permiten saber si hay obstrucción al momento de recibir el comando), `'R'` siempre limpia. El próximo ciclo de 100 ms re-evalúa `DIST_CM < UMBRAL_CM` y, si la mano sigue cerca, vuelve a cortar. |
+| `'P'` (`0x50`) | Ejecuta la lógica de `ISR_EMERGENCIA`: motor OFF, LED rojo, `FLAG_EMERGENCY = 1`. |
+| Otro | Ignorado. |
+
+### Paso 1 — Configurar UART (mismos registros que HU-05)
+
+El archivo standalone reescribe la config para poder probarse solo. En el integrado, **HU-05 ya deja todo listo** y esta HU no repite la config.
+
+### Paso 2 — Habilitar la interrupción de RX
+
+Dos requisitos que no son obvios:
+
+1. `PIE1, RCIE = 1` (bit 5) — habilita localmente la IRQ de RCIF.
+2. `INTCON, PEIE = 1` (bit 6) — habilita globalmente las IRQs de periféricos. Sin esto, `RCIE` prendido no hace nada.
+
+Ambos son obligatorios. Si solo se hace uno, no funciona.
+
+### Paso 3 — Dispatcher
+
+Insertar el chequeo de `RCIF` entre `INT0IF` y `T0IF` (ver diagrama en HU-04 paso 3).
+
+```
+CHECK_RCIF:
+    BTFSS PIR1, RCIF
+    GOTO  T0_NORMAL
+    CALL ISR_UART_RX
+    GOTO  RECUPERAR_CONTEXTO
+```
+
+### Paso 4 — `ISR_UART_RX`
+
+Pasos:
+
+1. Chequear `RCSTA, OERR` (overrun). Si está en 1, hacer `BCF RCSTA, CREN` / `BSF RCSTA, CREN` para limpiar.
+2. `MOVF RCREG, W` — leer el byte (esto limpia `RCIF` automáticamente).
+3. Comparar con `'R'` y con `'P'`. Para comparar:
+   - Guardar W en `TEMP`
+   - `MOVLW 'R'`, `SUBWF TEMP, W`, `BTFSC STATUS, Z` → es `'R'`
+   - Repetir para `'P'`
+4. Si es `'R'`: `BCF FLAGS, 1`.
+5. Si es `'P'`: `CALL ISR_EMERGENCIA`.
+6. Si es otro: `RETURN` (ignorar).
+
+### Paso 5 — Integración en `tpFinal.asm`
+
+1. Borrar `__CONFIG` y `CBLOCK` de `HU06-UART-RX.asm`.
+2. En `MAIN` de `tpFinal.asm`, agregar `BSF PIE1, RCIE` en el bloque de Bank 1 (después de la config de UART). El cambio de `INTCON` a `0xD0` ya queda hecho por HU-04.
+3. En el dispatcher de la ISR, insertar el bloque `CHECK_RCIF` entre el chequeo de INT0 y el flujo de T0.
+4. Pegar `ISR_UART_RX` al final del archivo. **No** pegar la `ISR_EMERGENCIA` duplicada de este archivo — en el integrado se usa la original de HU-04.
+
+### Prueba en simulador
+
+1. Cargar `HU06-UART-RX.asm` standalone.
+2. Setear manualmente `BSF FLAGS, 1` (emergencia activa).
+3. Abrir *Simulator > UART1 IO*.
+4. Enviar `'R'` → verificar `FLAGS` bit 1 = 0.
+5. Enviar `'P'` → verificar `FLAGS` bit 1 = 1, `PORTD` bit 1 = 1, `CCPR1L = 0x00`.
+6. Enviar `'X'` o cualquier otro byte → no debe cambiar nada.
+7. Probar recovery de overrun: forzar `BSF RCSTA, OERR` y enviar varios bytes seguidos sin atender la ISR; al atenderla, debe limpiarse automáticamente.
+
+---
+
+## HU-03 — ADC + Display
+
+> **⚠️ OBSOLETA** — La implementación operativa vive en `tpFinal.asm`. Esta sección se conserva como referencia histórica de las decisiones de diseño (rango 5–25 cm, multiplexado por software, justificación derecha del ADC).
+
+**Archivo histórico:** `HU03-ADC-DISPLAY.asm`
 
 ### Paso 1 — Configurar puertos
 
@@ -71,9 +321,11 @@ La tabla `BCD_7SEG` ya está en el esqueleto.
 
 ---
 
-## HU-01 — Medición HC-SR04 (Juan)
+## HU-01 — Medición HC-SR04
 
-**Archivo:** `HU01-HCSR04.asm`
+> **⚠️ OBSOLETA** — La implementación operativa vive en `tpFinal.asm`. Esta sección se conserva como referencia histórica de la fórmula de conversión (`ticks × 9 / 512`) y los timeouts.
+
+**Archivo histórico:** `HU01-HCSR04.asm`
 
 ### Paso 1 — Configurar puertos
 
@@ -134,9 +386,11 @@ Secuencia:
 
 ---
 
-## HU-02 — Corte automático (Amy)
+## HU-02 — Corte automático
 
-**Archivo:** `HU02-CORTE.asm`
+> **⚠️ OBSOLETA** — La implementación operativa vive en `tpFinal.asm`. Esta sección se conserva como referencia histórica del contrato con `FLAG_EMERGENCY` (hoy dueña compartida con HU-04 y HU-06).
+
+**Archivo histórico:** `HU02-CORTE.asm`
 
 ### Paso 1 — Configurar puertos
 

@@ -103,7 +103,7 @@ ISR
     BTFSS STATUS,Z
     GOTO FIN_ISR
     CLRF CICLO_CNT
-    
+
     ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR, despachador >>>
     CALL LEER_ADC
     CALL MEDIR_HCSR04
@@ -144,7 +144,7 @@ ESPERAR_ECHO
     BTFSC   PORTC,RC1
     GOTO    ECHO_HIGH
     DECFSZ  CONT_DELAY,F
-    GOTO    ESPERAR_ECHO_LOOP
+    GOTO    ESPERAR_ECHO
 
     ; Timeout - sensor disconnected
     MOVLW   0xFF
