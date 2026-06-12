@@ -12,3 +12,6 @@ nbproject/private/
 *.bak
 .atl/
 openspec/
+nbproject/configurations.xml
+nbproject/Makefile-default.mk
+nbproject/Makefile-genesis.properties
