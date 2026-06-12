@@ -2,17 +2,17 @@
 
 > Variables compartidas, flags, pines y registros. **Esto no se cambia sin avisar al equipo.**
 >
-> Las HUs 04, 05 y 06 se entregan como esqueletos standalone. Al integrar en `tpFinal.asm`, se borra su `__CONFIG` y su `CBLOCK` y se conserva solo el del archivo final (ver cabecera de `tpFinal.asm`).
+> Las HUs 04-09 se entregan como esqueletos standalone. Al integrar en `tpFinal.asm`, se borra su `__CONFIG` y su `CBLOCK` y se conserva solo el del archivo final (ver cabecera de `tpFinal.asm`).
 
 ## Mapa de RAM compartida (Bank 0)
 
 | Dirección | Nombre | Tamaño | Escribe | Lee | Descripción |
 |-----------|--------|--------|---------|-----|-------------|
-| `0x20` | `DIST_CM` | 1 byte | HU-01 | HU-02, HU-05 | Distancia medida en cm (`0xFF` = error/sensor desconectado) |
-| `0x21` | `UMBRAL_CM` | 1 byte | HU-03 | HU-02, HU-05 | Umbral de corte (5–25 cm) |
-| `0x22` | `UMBRAL_DEC` | 1 byte | HU-03 | HU-03 | Dígito decenas del umbral |
-| `0x23` | `UMBRAL_UNI` | 1 byte | HU-03 | HU-03 | Dígito unidades del umbral |
-| `0x24` | `DISP_SEL` | 1 byte | HU-03 | HU-03 | Flag selector display (bit 0) |
+| `0x20` | `DIST_CM` | 1 byte | HU-01 | HU-02, HU-05, HU-07 | Distancia medida en cm (`0xFF` = error/sensor desconectado) |
+| `0x21` | `UMBRAL_CM` | 1 byte | HU-03, HU-08 | HU-02, HU-05, HU-07 | Umbral de corte (5–25 cm) |
+| `0x22` | `UMBRAL_DEC` | 1 byte | HU-08 | HU-09 | Dígito decenas del umbral |
+| `0x23` | `UMBRAL_UNI` | 1 byte | HU-08 | HU-09 | Dígito unidades del umbral |
+| `0x24` | `DISP_SEL` | 1 byte | HU-09 | HU-09 | Flag selector display (bit 0) — alterna en cada llamada a RUTINA_DISPLAY |
 | `0x25` | `CICLO_CNT` | 1 byte | HU-01 | — | Contador ciclos Timer0 (0–9) |
 | `0x26` | `FLAGS` | 1 byte | Todos | Todos | Bits de estado del sistema (ver tabla) |
 | `0x27` | `TEMP` | 1 byte | Cualquiera | Cualquiera | Scratch de uso general (TX, conversiones) |
@@ -23,7 +23,7 @@
 | `0x2C` | `TX_DEC` | 1 byte | HU-05 | HU-05 | Decenas ASCII generadas por BIN_TO_ASCII |
 | `0x2D` | `TX_UNI` | 1 byte | HU-05 | HU-05 | Unidades ASCII generadas por BIN_TO_ASCII |
 
-> Las HUs 04/05/06 **no requieren** direcciones nuevas si sus variables internas son locales a sus subrutinas (salvadas en W o stack). Si una HU necesita variables persistentes propias, se documenta acá antes de sumarla.
+> Las HUs 04-09 **no requieren** direcciones nuevas si sus variables internas son locales a sus subrutinas (salvadas en W o stack). Si una HU necesita variables persistentes propias, se documenta acá antes de sumarla.
 
 ### FLAGS (0x26)
 
@@ -31,7 +31,7 @@
 |-----|--------|-------------|--------------|-------------|
 | 0 | `FLAG_TX` | ISR Timer0 (cada 100 ms al final del ciclo) | Main loop (cuando envía la trama) | Hay trama UART lista para enviar |
 | 1 | `FLAG_EMERGENCY` | HU-04 (ISR INT0) **y** HU-06 (al recibir `'P'`) | HU-06 (al recibir `'R'`) | Paro de emergencia activo |
-| 2 | `FLAG_MOTOR` | HU-02 | HU-02 | 1 = motor ON, 0 = motor OFF |
+| 2 | `FLAG_MOTOR` | HU-02 | HU-02 | 1 = motor ON, 0 = motor OFF. Lo lee HU-07 para actualizar LEDs |
 | 3–7 | reservados | — | — | Disponibles para uso futuro |
 
 > **Regla de oro:** cualquiera puede leer `FLAGS`. Solo el dueño de cada bit puede escribirlo.
@@ -47,11 +47,11 @@
 | RC2/CCP1 | OUT | PWM | Motor DC (vía TIP31C) | HU-02 |
 | RC6/TX | OUT | UART TX | PC (RX) | **HU-05** |
 | RC7/RX | IN | UART RX | PC (TX) | **HU-06** |
-| RD0 | OUT | LED verde | Estado OK | HU-02 |
-| RD1 | OUT | LED rojo | Estado alarma | HU-02 |
-| RD2–RD7 | OUT | Seg. a–f | Displays (bus compartido) | HU-03 |
-| RE0 | OUT | Selector decenas | Display | HU-03 |
-| RE1 | OUT | Selector unidades | Display | HU-03 |
+| RD0 | OUT | LED verde | Estado OK | HU-02, **HU-07** |
+| RD1 | OUT | LED rojo | Estado alarma | HU-02, **HU-07** |
+| RD2–RD7 | OUT | Seg. a–f | Displays (bus compartido) | HU-03, **HU-09** |
+| RE0 | OUT | Selector decenas | Display | HU-03, **HU-09** |
+| RE1 | OUT | Selector unidades | Display | HU-03, **HU-09** |
 
 ## Tabla BCD→7 segmentos (compartida)
 
