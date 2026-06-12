@@ -85,7 +85,7 @@ MAIN
     MOVLW .100
     MOVWF TMR0
     
-    ;Inicializaci�n de displays apagados y variables
+    ;Inicializacion de displays apagados y variables
     CLRF PORTE
     CLRF PORTD
     CLRF CICLO_CNT
@@ -96,7 +96,7 @@ MAIN
     CLRF DISP_SEL
     CLRF ADC_RES
  
-    ;Habilitaci�n de interrupciones
+    ;Habilitacion de interrupciones
     MOVLW b'10110000'
     MOVWF INTCON
     
@@ -108,13 +108,11 @@ ISR_TIMER0
     MOVWF W_TEMP
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
-    
-    BANKSEL TMR0
+    ;Carga tmr0
     MOVLW .100
     MOVWF TMR0
     
-    BCF INTCON,T0IF 
-    
+    BCF INTCON,T0IF
     INCF CICLO_CNT,F
 
     MOVLW .10
@@ -124,7 +122,7 @@ ISR_TIMER0
     GOTO NO_ADC
     CLRF CICLO_CNT
     
-    ;Inicializaci�n de la conversi�n
+    ;Inicializacion de la conversion
     BSF ADCON0,GO
 
 ESPERA_ADC
@@ -158,7 +156,8 @@ FIN_DIV13
 
     MOVF UMBRAL_CM,W
     MOVWF UMBRAL_UNI
-    BCD_LOOP
+    
+BCD_LOOP
     MOVLW .10
     SUBWF UMBRAL_UNI,F
 

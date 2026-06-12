@@ -31,7 +31,7 @@ git commit -m "HU-03: ADC + display multiplexado funcional"
 git push origin dev
 ```
 
-## Vos (merge a main)
+## Juan (merge a main)
 
 ```bash
 git checkout main

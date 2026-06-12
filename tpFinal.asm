@@ -50,7 +50,6 @@ MAIN
     BSF STATUS,RP1
 
     ;T0 CONFIG
-    BANKSEL OPTION_REG
     MOVLW   0x05        ; prescaler 1:64 for Timer0
     MOVWF   OPTION_REG
     MOVLW   0xB0

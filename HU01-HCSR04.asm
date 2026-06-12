@@ -135,7 +135,7 @@ ESPERAR_ECHO
     BTFSC   PORTC,RC1
     GOTO    ECHO_HIGH
     DECFSZ  CONT_DELAY,F
-    GOTO    ESPERAR_ECHO_LOOP
+    GOTO    ESPERAR_ECHO
 
     ; Timeout - sensor disconnected
     MOVLW   0xFF

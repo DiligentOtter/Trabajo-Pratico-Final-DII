@@ -20,6 +20,8 @@
 | `0x29` | `TMR1_H` | 1 byte | HU-01 | HU-01 | Timer1 alto (eco debugging) |
 | `0x2A` | `TMR1_L` | 1 byte | HU-01 | HU-01 | Timer1 bajo (eco debugging) |
 | `0x2B` | `CONT_DELAY` | 1 byte | Cualquiera | Cualquiera | Contador para retardos cortos (≤256 µs) |
+| `0x2C` | `TX_DEC` | 1 byte | HU-05 | HU-05 | Decenas ASCII generadas por BIN_TO_ASCII |
+| `0x2D` | `TX_UNI` | 1 byte | HU-05 | HU-05 | Unidades ASCII generadas por BIN_TO_ASCII |
 
 > Las HUs 04/05/06 **no requieren** direcciones nuevas si sus variables internas son locales a sus subrutinas (salvadas en W o stack). Si una HU necesita variables persistentes propias, se documenta acá antes de sumarla.
 
