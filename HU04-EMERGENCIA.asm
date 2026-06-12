@@ -30,13 +30,17 @@ MAIN
     BCF STATUS,RP1
   
     BSF TRISB,0          
+    BSF WPUB,0
 
+    BCF TRISD,0
+    BCF TRISD,1
     ;Flanco descendente en INT0
     ;OPTION_REG bit 6 = INTEDG. 0 = descendente, 1 = ascendente.
     ;CUIDADO: El resto de OPTION_REG lo define HU-03 (prescaler T0),por eso usamos BCF sobre el bit, no MOVLW directo.
 
     BCF OPTION_REG,INTEDG
-
+    BCF OPTION_REG,0
+    
     ;Habilitar INT0 en INTCON
     ; GIE=1 + INTE=1 + T0IE=1 (+ PEIE=1 que pide HU-06)
     ; Ver CONTRATO.md: valor final 0xD0. 
