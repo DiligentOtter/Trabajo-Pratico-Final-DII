@@ -3,9 +3,7 @@
 ; Propósito: Cada 100 ms, enviar por UART la trama
 ;            "D:XXcm U:XXcm M:XX\r\n" con distancia, umbral y
 ;            estado del motor. 9600 8N1.
-; Integración: al pegar en tpFinal.asm, borrar este __CONFIG y este
-;              CBLOCK, y mover la lógica al LOOP (chequeo FLAG_TX)
-;              y a la ISR (set FLAG_TX cada 100 ms).
+; Integración: LISTO!
 ; ------------------------------------------------------------------
     LIST p=16F887
     #INCLUDE "P16F887.inc"
@@ -72,10 +70,6 @@ MAIN
 
     ; 5. LOOP: espera FLAG_TX y envia 
  ; LOOP
- ;   BTFSS   FLAGS, 0          ; ¿FLAG_TX = 1?
- ;   GOTO    LOOP
- ;   BCF     FLAGS, 0          ; limpiar (dueño: main)
- ;   CALL    ENVIAR_TRAMA
  ;   GOTO    LOOP */
 
 
@@ -231,23 +225,4 @@ RECUPERAR_CONTEXTO
     SWAPF   W_TEMP, F
     SWAPF   W_TEMP, W
     RETFIE
-
-
-; =================================================================
-; BLOQUE DE TEST — para probar este esqueleto standalone en MPLABX.
-; Comentar/eliminar al integrar.
-;
-; 1. Cargar HU05-UART-TX.asm standalone
-; 2. Setear valores de prueba en RAM antes de correr:
-;      DIST_CM   = .12
-;      UMBRAL_CM = .08
-;      FLAGS bit 2 = 1 (motor ON)
-; 3. Abrir ventana "UART1 IO" o similar del simulador (9600 8N1)
-; 4. Verificar que la trama "D:12cm U:08cm M:ON\r\n" sale
-; 5. Probar variantes: DIST_CM=5, UMBRAL_CM=25, FLAG_MOTOR=0
-;    → "D:05cm U:25cm M:OFF\r\n"
-; 6. Probar borde: DIST_CM=0 → "D:00cm..."
-;
-; =================================================================
-
     END

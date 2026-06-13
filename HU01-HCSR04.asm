@@ -1,7 +1,8 @@
 ;---------------------------------------------------------------------
-; HU-01 — Medición de distancia con HC-SR04
+; HU-01� medicion de distancia con HC-SR04
 ; Propósito: Enviar pulso TRIG, medir ancho ECHO con Timer1,
 ;            calcular distancia en cm.
+; INTEGRACION: LISTO!
 ; Responsable: Juan
 ; ------------------------------------------------------------------
     LIST p=16F887
@@ -22,7 +23,7 @@
         CONT_DELAY
     ENDC
 
-; ─── Vector Reset ───
+; Vector Reset
     ORG     0
     GOTO    MAIN
 

@@ -1,3 +1,5 @@
+;INTEGRACION: LISTO!
+
  LIST p=16F887
     #INCLUDE "P16F887.inc"
     RADIX HEX
@@ -104,28 +106,10 @@ LOOP
     GOTO LOOP
  
 ISR_TIMER0
-    ;Guardado de contexto
-    MOVWF W_TEMP
-    SWAPF STATUS,W
-    MOVWF STATUS_TEMP
-    ;Carga tmr0
-    MOVLW .100
-    MOVWF TMR0
-    
-    BCF INTCON,T0IF
-    INCF CICLO_CNT,F
 
-    MOVLW .10
-    SUBWF CICLO_CNT,W
-    
-    BTFSS STATUS,Z
-    GOTO NO_ADC
-    CLRF CICLO_CNT
-    
-    ;Inicializacion de la conversion
-    BSF ADCON0,GO
 
 ESPERA_ADC
+    BSF ADCON0,GO
     BTFSC ADCON0,GO
     GOTO ESPERA_ADC
 
@@ -151,7 +135,7 @@ DIV13
 
 FIN_DIV13
     
-    ;Conversi�n a BCD
+    ;Conversion a BCD
     CLRF UMBRAL_DEC
 
     MOVF UMBRAL_CM,W

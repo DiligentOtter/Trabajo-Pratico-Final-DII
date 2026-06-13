@@ -22,6 +22,8 @@
         TMR1_H          ; 0x29
         TMR1_L          ; 0x2A
         CONT_DELAY      ; 0x2B
+        TX_DEC          ; 0x2C  — decenas ASCII (HU-05)
+        TX_UNI          ; 0x2D  — unidades ASCII (HU-05)
     ENDC
     CBLOCK 0x7D
         W_TEMP
@@ -38,29 +40,78 @@ MAIN
     ; <<< puertos y perifericos>>>
     ; OPTION_REG=0x05, TMR0=100, INTCON=0xB0
 
-    ;CONFIGURACIONES BK 0
+    ;------------BK0---------------
     BCF STATUS,RP0
     BCF STATUS,RP1
+    
+    ;INTERRUPCIONES
+    MOVLW b'11110000'
+    MOVWF INTCON
+    
     ;T1 CONFIG
     MOVLW 0x01
     MOVWF T1CON
 
-    ;CONFIGURACIONES BK 1
-    BCF STATUS,RP0
+    ;ADC
+    MOVLW 0x41        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
+    MOVWF ADCON0
+
+    ;TX
+    MOVLW 0x90
+    MOVWF RCSTA
+    ;-------------BK1-------------                    
+    BCF STATUS,RP0 
     BSF STATUS,RP1
+
+    ;ADC
+    MOVLW 0x80        ; ADFM=1: justificado a derecha, Vref=VDD
+    MOVWF ADCON1
+
+    ;TX/RX
+    MOVLW   0x19
+    MOVWF   SPBRG
+    
+    MOVLW   0x24
+    MOVWF   TXSTA
 
     ;T0 CONFIG
     MOVLW   0x05        ; prescaler 1:64 for Timer0
     MOVWF   OPTION_REG
-    MOVLW   0xB0
-    MOVWF   INTCON
 
     ; I/O PORTS
-    BCF TRISC,0
-    BSF TRISC,1
+    ;PORT A
+    BSF PORTA,0 ;POTENCIOMETRO
 
-    ;CONFIGURACIONES BK 2
-    ;CONFIGURACIONES BK 3
+    ;PORTB | INTERRUPCION
+    BSF TRISB,0          
+    BSF WPUB,0
+    
+    ;PORTC 
+    BCF TRISC,0 ;TRIGGER SENSOR
+    BSF TRISC,1 ;ECHO SENSOR
+    BCF TRISC,2
+    BCF TRISC,6 ;TX
+    BSF TRISC,7 ;RX
+    
+    ;PORTD | 7SEG
+    CLRF PORTD
+    
+    ;PORTE | 7SEG SELCT
+    CLRF PORTE
+
+    
+    
+    
+    ;-----------BK2---------------------
+
+
+    ;--------------BK3--------------------
+    ;CONFIGURACIONES BK 3, ANALOGIC REGS
+    BSF STATUS,RP0
+    BSF STATUS,RP1
+    
+    BSF ANSEL,0 ;RA0/AN0
+    CLRF ANSELH
 
 
 
@@ -78,22 +129,25 @@ MAIN
     CLRF PORTE
     CLRF PORTD
     BCF PORTC,0
+    BCF FLAG,1
 LOOP
     GOTO LOOP
 
 ; === ISR  (unica) ===
 ISR
-    MOVWF W_TEMP
+    MOVWF W_TEMP ;SAVE CONTEXT
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
-    MOVLW .100
+    
+    MOVLW .100 ;REFRESH T0
     MOVWF TMR0
     BCF INTCON,T0IF
 
-    ;Atender rutina de emergencia, si hay si no skip, y RETFIE
+    ;Atender rutina de emergencia
+    BTFSC INTCON,INTF
+    GOTO ISR_EMERGENCIA
 
     ;rutina de funcionamiento normal
-    ; <<< RUTINA_DISPLAY (HU-03) - siempre >>>
     CALL RUTINA_DISPLAY
 
     INCF CICLO_CNT,F
@@ -103,10 +157,11 @@ ISR
     GOTO FIN_ISR
     CLRF CICLO_CNT
 
-    ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR, despachador >>>
-    CALL LEER_ADC
+    ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
+    CALL ESPERA_ADC
     CALL MEDIR_HCSR04
     CALL COMPARAR_Y_ACTUAR
+    CALL ENVIAR_TRAMA
     GOTO RECUPERAR_CONTEXTO
 
 RECUPERAR_CONTEXTO
@@ -117,24 +172,37 @@ RECUPERAR_CONTEXTO
     RETFIE
 
 ; ===================================== Subrutinas (pegar desde HU0X-*.asm) ===================================
+ISR_EMERGENCIA
+ 
+    BCF INTCON,INTF
 
+    CLRF CCPR1L
+    BCF PORTD,0      ; verde OFF
+    BSF PORTD,1      ; rojo ON
 
-MEDIR_HCSR04        ; HU-01
-; --- PASO 1: Enviar pulso TRIG de 10µs ---
+    BSF FLAG,1       ; FLAG_EMERGENCY = 1
+
+    RETURN  
+
+;-------------------------------------------------------         
+
+MEDIR_HCSR04    
+; --- Enviar pulso TRIG de 10µs ---
     ; BSF PORTC, RC0
-    ; Esperar aprox 10µs
-    MOVLW .2              ; ~9us con prescaler 1:1 a 4MHz
+    ; Esperar aprox 9µs
+    MOVLW .2              
 
     MOVWF CONT_DELAY
     BSF PORTC,0
+    
 DELAY_10US
     DECF CONT_DELAY
     BTFSS STATUS,Z
     GOTO DELAY_10US
     BCF PORTC,0           ; fin del pulso TRIG
 
-    ; --- PASO 2: Esperar que ECHO suba (con timeout) ---
-    ; Polling de RC1, esperando que pase a 1
+    
+    ; Polling de RC1, esperando que ECHO pase a 1
     ; Si pasa demasiado tiempo (~1ms), abortar
 
     MOVLW   .170        ; ~1ms timeout (1020us a 4MHz)
@@ -145,16 +213,16 @@ ESPERAR_ECHO
     DECFSZ  CONT_DELAY,F
     GOTO    ESPERAR_ECHO
 
-    ; Timeout - sensor disconnected
+    ; Timeout
     MOVLW   0xFF
     MOVWF   DIST_CM
     GOTO    RECUPERAR_CONTEXTO
 
 
-    ; --- PASO 3: Iniciar Timer1 y medir ancho del pulso ---
+    
     ; Cuando ECHO = 1:
     ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
-    ; ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
+    ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
 ECHO_HIGH
 
     CLRF TMR1H
@@ -173,10 +241,8 @@ ECHO_TIMEOUT
 
 
 
-    ; --- PASO 4: Calcular distancia ---
+    
     ; Cuando ECHO baja (o timeout):
-    ;   TMR1_H = TMR1H, TMR1_L = TMR1L (guardar)
-    ;   distancia_cm = ticks / 58 == ticks*9/512
     ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
 ECHO_LOW
     MOVF TMR1H,0
@@ -213,9 +279,202 @@ ECHO_LOW
     RETURN
 
 
-RUTINA_DISPLAY      ; HU-03
-LEER_ADC            ; HU-03
-COMPARAR_Y_ACTUAR   ; HU-02
-BCD_7SEG            ; HU-03
+;----------------------------------------------            
+RUTINA_DISPLAY
+    BCF PORTE,0
+    BCF PORTE,1
+    
+    BTFSS DISP_SEL,0
+    GOTO SHOW_DECENAS
+    GOTO SHOW_UNIDADES
+    
+SHOW_UNIDADES
+    MOVF UMBRAL_UNI, W
+    CALL BCD_7SEG
+    MOVWF PORTD
+    BSF PORTE,1
+    
+    BCF DISP_SEL,0     
+    RETURN
+    
+SHOW_DECENAS
+    MOVF UMBRAL_DEC,W
+    CALL BCD_7SEG
+    MOVWF PORTD
+    BSF PORTE,0
+    
+    BSF DISP_SEL,0     
+    RETURN
+;-------------lectura ADC-----------
 
+ESPERA_ADC
+    BSF ADCON0,GO
+    BTFSC ADCON0,GO
+    GOTO ESPERA_ADC
+
+    ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
+    MOVF ADRESL,W
+    MOVWF ADC_RES
+    
+    ;UMBRAL_CM = 5 + (ADC_RES/13)
+    MOVF ADC_RES,W
+    MOVWF TEMP
+    MOVLW .5
+    MOVWF UMBRAL_CM
+    
+DIV13
+    MOVLW .13
+    SUBWF TEMP,F
+
+    BTFSS STATUS,C
+    GOTO FIN_DIV13
+
+    INCF UMBRAL_CM,F
+    GOTO DIV13
+
+FIN_DIV13
+    
+    ;Conversion a BCD
+    CLRF UMBRAL_DEC
+
+    MOVF UMBRAL_CM,W
+    MOVWF UMBRAL_UNI
+    
+BCD_LOOP
+    MOVLW .10
+    SUBWF UMBRAL_UNI,F
+
+    BTFSS STATUS,C
+    GOTO BCD_FIN
+
+    INCF UMBRAL_DEC,F
+    GOTO BCD_LOOP
+
+BCD_FIN
+    MOVLW .10
+    ADDWF UMBRAL_UNI,F
+
+    RETURN
+
+;------------------------------
+
+COMPARAR_Y_ACTUAR   ; HU-02            ; HU-03
+
+;-------------------------------
+
+ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
+    MOVLW 'D'
+    CALL TX_BYTE
+    MOVLW ':'
+    CALL TX_BYTE
+    ;Emitiendo distancia ACTUAL
+    MOVF DIST_CM,W
+    CALL BIN_TO_ASCII
+    
+    MOVF TX_DEC,W
+    CALL TX_BYTE
+    MOVF TX_UNI,W
+    CALL TX_BYTE
+    MOVLW 'c'
+    CALL TX_BYTE
+    MOVLW 'm'
+    CALL TX_BYTE
+
+    ;emitiendo umbral actual ' U:xxcm'
+    
+    MOVLW ' '
+    CALL TX_BYTE
+    MOVLW 'U'
+    CALL TX_BYTE
+    MOVLW ':'
+    CALL TX_BYTE
+    MOVF UMBRAL_CM,W
+    CALL BIN_TO_ASCII
+    MOVF TX_DEC,W
+    CALL TX_BYTE
+    MOVF TX_UNI,W
+    CALL TX_BYTE
+    MOVLW 'c'
+    CALL TX_BYTE
+    MOVLW 'm'
+    CALL TX_BYTE
+
+    ;emitiendo estado motor
+    MOVLW ' '
+    CALL TX_BYTE
+    MOVLW 'M'
+    CALL TX_BYTE
+    MOVLW ':'
+    CALL TX_BYTE
+    BTFSS FLAGS,2
+    GOTO MOTOR_OFF
+MOTOR_ON
+    MOVLW 'O'
+    CALL TX_BYTE
+    MOVLW 'N'
+    CALL TX_BYTE
+    GOTO END_MOTOR
+MOTOR_OFF
+    MOVLW 'O'
+    CALL TX_BYTE
+    MOVLW 'O'
+    CALL TX_BYTE
+    MOVLW 'F'
+    CALL TX_BYTE
+END_MOTOR
+
+    ;FIN TRAMA
+    MOVLW 0X0D
+    CALL TX_BYTE
+    MOVLW 0X0A
+    CALL TX_BYTE
+
+    RETURN ;VOLVEMOS AL DISPACHER PARA LOS DEMAS PROCESOS
+
+TX_BYTE
+    MOVWF   TEMP
+    BCF     STATUS, RP1
+    BSF     STATUS, RP0     ; BANK 1
+TX_WAIT
+    BTFSS   TXSTA, TRMT
+    GOTO    TX_WAIT
+    MOVF    TEMP, W
+    BCF     STATUS, RP1
+    BCF     STATUS, RP0     ; BANK 0
+    MOVWF   TXREG
+    RETURN
+
+BIN_TO_ASCII
+    MOVWF   TEMP
+    CLRF    TX_DEC
+BIN_DEC_LOOP
+    MOVLW   .10
+    SUBWF   TEMP, W
+    BTFSS   STATUS, C
+    GOTO    BIN_DEC_DONE
+    MOVWF   TEMP
+    INCF    TX_DEC, F
+    GOTO    BIN_DEC_LOOP
+BIN_DEC_DONE
+    MOVLW   '0'
+    ADDWF   TEMP, W
+    MOVWF   TX_UNI
+    MOVF    TX_DEC, W
+    ADDLW   '0'
+    MOVWF   TX_DEC
+    RETURN
+;------------------------
+BCD_7SEG
+    ADDWF PCL,F
+    RETLW  b'00111111'    ; 0
+    RETLW  b'00000110'    ; 1
+    RETLW  b'01011011'    ; 2
+    RETLW  b'01001111'    ; 3
+    RETLW  b'01100110'    ; 4
+    RETLW  b'01101101'    ; 5
+    RETLW  b'01111101'    ; 6
+    RETLW  b'00000111'    ; 7
+    RETLW  b'01111111'    ; 8
+    RETLW  b'01101111'    ; 9
+;---------------------
     END
