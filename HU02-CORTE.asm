@@ -118,14 +118,7 @@ INIT_VARIABLES:
     CLRF    FLAGS
     RETURN
 
-; 
-; COMPARAR_Y_ACTUAR ? decision central del sistema
-; ¿DIST_CM < UMBRAL_CM?
-;   SI  ? MOTOR_OFF
-;   NO  ? ¿FLAG_EMERGENCY=1?
-;            SI ? MOTOR_OFF
-;            NO ? MOTOR_ON
-; 
+
 COMPARAR_Y_ACTUAR:
     BANKSEL DIST_CM
     MOVF    UMBRAL_CM, W
