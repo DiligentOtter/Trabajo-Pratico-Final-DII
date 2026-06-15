@@ -43,11 +43,11 @@ MAIN
     ;------------BK0---------------
     BCF STATUS,RP0
     BCF STATUS,RP1
-    
+
     ;INTERRUPCIONES
     MOVLW b'11110000'
     MOVWF INTCON
-    
+
     ;T1 CONFIG
     MOVLW 0x01
     MOVWF T1CON
@@ -59,9 +59,10 @@ MAIN
     ;TX
     MOVLW 0x90
     MOVWF RCSTA
-    ;-------------BK1-------------                    
-    BCF STATUS,RP0 
-    BSF STATUS,RP1
+    ;-------------BK1-------------
+    BCF STATUS,RP1
+    BSF STATUS,RP0
+
 
     ;ADC
     MOVLW 0x80        ; ADFM=1: justificado a derecha, Vref=VDD
@@ -70,7 +71,7 @@ MAIN
     ;TX/RX
     MOVLW   0x19
     MOVWF   SPBRG
-    
+
     MOVLW   0x24
     MOVWF   TXSTA
 
@@ -80,37 +81,36 @@ MAIN
 
     ; I/O PORTS
     ;PORT A
-    BSF PORTA,0 ;POTENCIOMETRO
+    BSF TRISA,0 ;POTENCIOMETRO
+    BCF TRISA,1
+    BCF TRISA,2
 
     ;PORTB | INTERRUPCION
-    BSF TRISB,0          
+    BSF TRISB,0
     BSF WPUB,0
-    
-    ;PORTC 
+
+    ;PORTC
     BCF TRISC,0 ;TRIGGER SENSOR
     BSF TRISC,1 ;ECHO SENSOR
     BCF TRISC,2
     BCF TRISC,6 ;TX
     BSF TRISC,7 ;RX
-    
+
     ;PORTD | 7SEG
     CLRF PORTD
-    
+
     ;PORTE | 7SEG SELCT
     CLRF PORTE
-
-    
-    
-    
-    ;-----------BK2---------------------
 
 
     ;--------------BK3--------------------
     ;CONFIGURACIONES BK 3, ANALOGIC REGS
     BSF STATUS,RP0
     BSF STATUS,RP1
-    
+
     BSF ANSEL,0 ;RA0/AN0
+    BCF ANSEL,1 ;LED VERDE
+    BCF ANSEL,2 ;LED ROJO
     CLRF ANSELH
 
 
@@ -119,8 +119,7 @@ MAIN
     BCF STATUS,RP0
     BCF STATUS,RP1
 
-    MOVLW .100
-    MOVWF TMR0
+
 
     CLRF DIST_CM
     CLRF UMBRAL_CM
@@ -128,8 +127,15 @@ MAIN
     CLRF FLAGS
     CLRF PORTE
     CLRF PORTD
+    BCF PORTA,1 ;LED VERDE
+    BSF PORTA,2 ;LED ROJO
     BCF PORTC,0
-    BCF FLAG,1
+    BCF FLAGS,1
+
+    CALL PWM_INIT
+
+    MOVLW .100
+    MOVWF TMR0
 LOOP
     GOTO LOOP
 
@@ -138,7 +144,10 @@ ISR
     MOVWF W_TEMP ;SAVE CONTEXT
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
-    
+
+    BCF     STATUS, RP0 ;BK0
+    BCF     STATUS, RP1
+
     MOVLW .100 ;REFRESH T0
     MOVWF TMR0
     BCF INTCON,T0IF
@@ -154,7 +163,7 @@ ISR
     MOVLW .10
     SUBWF CICLO_CNT,W
     BTFSS STATUS,Z
-    GOTO FIN_ISR
+    GOTO RECUPERAR_CONTEXTO
     CLRF CICLO_CNT
 
     ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
@@ -172,36 +181,37 @@ RECUPERAR_CONTEXTO
     RETFIE
 
 ; ===================================== Subrutinas (pegar desde HU0X-*.asm) ===================================
+
 ISR_EMERGENCIA
- 
+
     BCF INTCON,INTF
 
-    CLRF CCPR1L
-    BCF PORTD,0      ; verde OFF
-    BSF PORTD,1      ; rojo ON
+    CALL PWM_OFF
+    BCF PORTA,1      ; verde OFF
+    BSF PORTA,2      ; rojo ON
 
-    BSF FLAG,1       ; FLAG_EMERGENCY = 1
+    BSF FLAGS,1       ; FLAG_EMERGENCY = 1
 
-    RETURN  
+    GOTO RECUPERAR_CONTEXTO
 
-;-------------------------------------------------------         
+;-------------------------------------------------------
 
-MEDIR_HCSR04    
+MEDIR_HCSR04
 ; --- Enviar pulso TRIG de 10µs ---
     ; BSF PORTC, RC0
     ; Esperar aprox 9µs
-    MOVLW .2              
+    MOVLW .2
 
     MOVWF CONT_DELAY
     BSF PORTC,0
-    
+
 DELAY_10US
     DECF CONT_DELAY
     BTFSS STATUS,Z
     GOTO DELAY_10US
     BCF PORTC,0           ; fin del pulso TRIG
 
-    
+
     ; Polling de RC1, esperando que ECHO pase a 1
     ; Si pasa demasiado tiempo (~1ms), abortar
 
@@ -219,7 +229,7 @@ ESPERAR_ECHO
     GOTO    RECUPERAR_CONTEXTO
 
 
-    
+
     ; Cuando ECHO = 1:
     ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
     ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
@@ -241,7 +251,7 @@ ECHO_TIMEOUT
 
 
 
-    
+
     ; Cuando ECHO baja (o timeout):
     ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
 ECHO_LOW
@@ -279,32 +289,34 @@ ECHO_LOW
     RETURN
 
 
-;----------------------------------------------            
+;----------------------------------------------
+
 RUTINA_DISPLAY
     BCF PORTE,0
     BCF PORTE,1
-    
+
     BTFSS DISP_SEL,0
     GOTO SHOW_DECENAS
     GOTO SHOW_UNIDADES
-    
+
 SHOW_UNIDADES
     MOVF UMBRAL_UNI, W
     CALL BCD_7SEG
     MOVWF PORTD
     BSF PORTE,1
-    
-    BCF DISP_SEL,0     
+
+    BCF DISP_SEL,0
     RETURN
-    
+
 SHOW_DECENAS
     MOVF UMBRAL_DEC,W
     CALL BCD_7SEG
     MOVWF PORTD
     BSF PORTE,0
-    
-    BSF DISP_SEL,0     
+
+    BSF DISP_SEL,0
     RETURN
+
 ;-------------lectura ADC-----------
 
 ESPERA_ADC
@@ -315,13 +327,13 @@ ESPERA_ADC
     ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
     MOVF ADRESL,W
     MOVWF ADC_RES
-    
+
     ;UMBRAL_CM = 5 + (ADC_RES/13)
     MOVF ADC_RES,W
     MOVWF TEMP
     MOVLW .5
     MOVWF UMBRAL_CM
-    
+
 DIV13
     MOVLW .13
     SUBWF TEMP,F
@@ -333,13 +345,13 @@ DIV13
     GOTO DIV13
 
 FIN_DIV13
-    
+
     ;Conversion a BCD
     CLRF UMBRAL_DEC
 
     MOVF UMBRAL_CM,W
     MOVWF UMBRAL_UNI
-    
+
 BCD_LOOP
     MOVLW .10
     SUBWF UMBRAL_UNI,F
@@ -358,8 +370,42 @@ BCD_FIN
 
 ;------------------------------
 
-COMPARAR_Y_ACTUAR   ; HU-02            ; HU-03
+COMPARAR_Y_ACTUAR   ; HU-02
+    ;Comparar DIST_CM con UMBRAL_CM
 
+    MOVF UMBRAL_CM,W
+    SUBWF DIST_CM,W
+
+    BTFSS   STATUS, C
+    GOTO    MOTOR_OFF
+    BTFSC   FLAGS, 1
+    GOTO    MOTOR_OFF
+    GOTO    MOTOR_ON
+
+MOTOR_ON
+    CALL    PWM_ON
+    BSF     PORTA, 1  ; LED verde
+    BCF     PORTA, 2  ; LED rojo
+    BSF     FLAGS, 2  ; FLAG_MOTOR
+    RETURN
+
+MOTOR_OFF
+    CALL    PWM_OFF
+    BCF     PORTA, 1
+    BSF     PORTA, 2
+    BCF     FLAGS, 2
+    RETURN
+
+
+PWM_ON ;(motor 100% duty)
+    MOVLW b'11111111'
+    MOVWF CCPR1L
+    RETURN
+
+
+PWM_OFF ;(motor a 0% duty)
+    CLRF CCPR1L
+    RETURN
 ;-------------------------------
 
 ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
@@ -370,7 +416,7 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     ;Emitiendo distancia ACTUAL
     MOVF DIST_CM,W
     CALL BIN_TO_ASCII
-    
+
     MOVF TX_DEC,W
     CALL TX_BYTE
     MOVF TX_UNI,W
@@ -381,7 +427,7 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     CALL TX_BYTE
 
     ;emitiendo umbral actual ' U:xxcm'
-    
+
     MOVLW ' '
     CALL TX_BYTE
     MOVLW 'U'
@@ -407,14 +453,15 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     MOVLW ':'
     CALL TX_BYTE
     BTFSS FLAGS,2
-    GOTO MOTOR_OFF
-MOTOR_ON
+    GOTO MOTOR_STATE_OFF
+MOTOR_STATE_ON
     MOVLW 'O'
     CALL TX_BYTE
     MOVLW 'N'
     CALL TX_BYTE
     GOTO END_MOTOR
-MOTOR_OFF
+
+MOTOR_STATE_OFF
     MOVLW 'O'
     CALL TX_BYTE
     MOVLW 'O'
@@ -477,4 +524,26 @@ BCD_7SEG
     RETLW  b'01111111'    ; 8
     RETLW  b'01101111'    ; 9
 ;---------------------
+
+PWM_INIT
+
+    MOVLW b'00000101'
+    MOVWF T2CON
+
+    BCF STATUS,RP1 ;BK1
+    BSF STATUS,RP0
+
+    MOVLW b'11111111'
+    MOVWF PR2
+
+    BCF STATUS,RP1 ;BK0
+    BCF STATUS,RP0
+
+
+    MOVLW b'00001100'
+    MOVWF CCP1CON
+
+    CLRF CCPR1L
+    RETURN
+
     END
