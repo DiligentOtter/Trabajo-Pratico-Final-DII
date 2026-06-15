@@ -42,15 +42,15 @@ El sistema mide continuamente la distancia entre la mano del operario y la hoja 
 | Pin | Dir | Función |
 |-----|-----|---------|
 | RA0/AN0 | IN | Potenciómetro (ADC) |
+| RA1 | OUT | LED verde |
+| RA2 | OUT | LED rojo |
 | RB0/INT0 | IN | Botón emergencia |
 | RC0 | OUT | TRIG HC-SR04 |
 | RC1 | IN | ECHO HC-SR04 |
 | RC2/CCP1 | OUT | PWM → base transistor motor |
 | RC6/TX | OUT | UART → PC |
 | RC7/RX | IN | UART ← PC |
-| RD0 | OUT | LED verde |
-| RD1 | OUT | LED rojo |
-| RD2–RD7 | OUT | Segmentos a–f (bus compartido) |
+| RD0–RD6 | OUT | Segmentos a–g (bus compartido) |
 | RE0 | OUT | Selector dígito decenas |
 | RE1 | OUT | Selector dígito unidades |
 
@@ -71,7 +71,7 @@ graph TD
     MOTOR --> VCC5["5V"]
     D1F["1N4007"] -.-|flyback| MOTOR
 
-    PIC -->|"RD2–RD7 (seg a–f)"| BUS["Bus segmentos"]
+    PIC -->|"RD0–RD6 (seg a–g)"| BUS["Bus segmentos"]
     BUS --> DA["Display Decenas"]
     BUS --> DB["Display Unidades"]
     PIC -->|RE0| Q2["BC547 (sel dec)"]
@@ -79,8 +79,8 @@ graph TD
     Q2 -->|Cátodo| DA
     Q3 -->|Cátodo| DB
 
-    PIC -->|RD0| LEDG["LED Verde"]
-    PIC -->|RD1| LEDR["LED Rojo"]
+    PIC -->|RA1| LEDG["LED Verde"]
+    PIC -->|RA2| LEDR["LED Rojo"]
 
     PIC -->|RC6/TX| USB["USB-TTL"]
     USB -->|RC7/RX| PIC
@@ -239,7 +239,7 @@ BCF     OPTION_REG, INTEDG  ; INT0 por flanco descendente
 | SPBRG | `0x19` | 9600 bps a 4 MHz |
 | INTCON | `0xB0` | GIE=1, TMR0IE=1, INTE=1 |
 | TRISC2 | `0` | RC2 como salida (CCP1/PWM) |
-| TRISD | `0x03` | RD2–RD7 salidas segmentos, RD0–RD1 salidas LEDs |
+| TRISD | `0x00` | RD0–RD6 salidas segmentos |
 | TRISE | `0x00` | RE0, RE1 salidas selectores display |
 
 ---

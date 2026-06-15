@@ -40,7 +40,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 | RS-F06 | INT0 (RB0) atiende el botón de emergencia con máxima prioridad. |
 | RS-F07 | La USART envía por TX el estado del sistema (distancia, umbral, estado motor) en ASCII. |
 | RS-F08 | La USART recibe por RX comandos desde PC: `'R'` = reanudar, `'P'` = parar. |
-| RS-F09 | El LED verde (RD0) indica motor activo; el LED rojo (RD1) indica motor detenido/emergencia. |
+| RS-F09 | El LED verde (RA1) indica motor activo; el LED rojo (RA2) indica motor detenido/emergencia. |
 | RS-F10 | El sistema arranca con el motor apagado (estado seguro por defecto). |
 | RS-F11 | El umbral de corte se muestra en dos displays de 7 segmentos multiplexados (decenas/unidades). |
 | RS-F12 | Los displays se refrescan desde la ISR del Timer0 mediante multiplexado por software. |
@@ -142,8 +142,8 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** no necesitar mirar la PC.
 
 **Criterios de aceptación:**
-- LED verde (RD0): motor activo.
-- LED rojo (RD1): motor detenido por proximidad o emergencia.
+- LED verde (RA1): motor activo.
+- LED rojo (RA2): motor detenido por proximidad o emergencia.
 - Mutuamente excluyentes.
 
 ---
@@ -238,15 +238,15 @@ RUTINA_DISPLAY
 | Pin PIC | Función | Componente |
 |---------|---------|------------|
 | RA0/AN0 | ADC input | Potenciómetro |
+| RA1 | LED verde | Estado OK |
+| RA2 | LED rojo | Estado alarma |
 | RB0/INT0 | INT externa | Botón emergencia |
 | RC0 | TRIG output | HC-SR04 |
 | RC1 | ECHO input | HC-SR04 |
 | RC2/CCP1 | PWM output | Base TIP31C → Motor DC |
 | RC6/TX | UART TX | PC (RX) |
 | RC7/RX | UART RX | PC (TX) |
-| RD0 | LED verde | Estado OK |
-| RD1 | LED rojo | Estado alarma |
-| RD2–RD7 | Segmentos a–f | Ambos displays (bus compartido) |
+| RD0–RD6 | Segmentos a–g | Ambos displays (bus compartido) |
 | RE0 | Selector decenas | BC547 → cátodo display |
 | RE1 | Selector unidades | BC547 → cátodo display |
 
@@ -257,16 +257,16 @@ RUTINA_DISPLAY
 ```
                              PIC16F887
                     ┌──────────────────────┐
-   POT ────────────►│RA0/AN0               │
-                    │                      │
-   TRIG ◄───────────│RC0               RD0 │──── LED Verde
-   ECHO ────────────►│RC1               RD1 │──── LED Rojo
-                    │                      │
-   BTN_EMG ─────────►│RB0/INT0    RC2/CCP1 │──[1kΩ]── Base TIP31C
-                    │                      │          Colector → Motor DC
-   PC_RX ◄───────────│RC6/TX        RD2–D7 │──┐       Emisor → GND
-   PC_TX ────────────►│RC7/RX            RE0│──┤── BC547 sel decenas
-                    │                  RE1 │──┘── BC547 sel unidades
+    POT ────────────►│RA0/AN0               │
+                     │                      │
+    TRIG ◄───────────│RC0               RA1 │──── LED Verde
+    ECHO ────────────►│RC1               RA2 │──── LED Rojo
+                     │                      │
+    BTN_EMG ─────────►│RB0/INT0    RC2/CCP1 │──[1kΩ]── Base TIP31C
+                     │                      │          Colector → Motor DC
+    PC_RX ◄───────────│RC6/TX       RD0–RD6 │──┐       Emisor → GND
+    PC_TX ────────────►│RC7/RX            RE0│──┤── BC547 sel decenas
+                     │                  RE1 │──┘── BC547 sel unidades
                     └──────────────────────┘
 
 Motor DC:   5V entre VCC y colector TIP31C. Diodo 1N4007 en paralelo (flyback).
@@ -327,6 +327,6 @@ BCD_7SEG:
 | RCSTA | `0x90` | UART RX, serial port ON |
 | SPBRG | `0x19` | 9600 bps a 4 MHz |
 | INTCON | `0xB0` | GIE=1, TMR0IE=1, INTE=1 |
-| TRISC | `0xC2` | RC2 salida (CCP1), RC6 salida (TX), RC7 entrada (RX), RC1 entrada (ECHO) |
-| TRISD | `0x03` | RD2–RD7 salidas (seg), RD0–RD1 salidas (LEDs) |
+| TRISC | `0xB2` | RC0 salida (TRIG), RC1 entrada (ECHO), RC2 salida (CCP1), RC6 salida (TX), RC7 entrada (RX) |
+| TRISD | `0x00` | RD0–RD6 salidas (segmentos a–g) |
 | TRISE | `0x00` | RE0, RE1 salidas (selectores display) |
