@@ -30,11 +30,12 @@
         STATUS_TEMP
     ENDC
 
-    ORG 0
+    ORG 0X00
     GOTO MAIN
-    ORG 4
+    ORG 0X04
     GOTO ISR
 
+    ORG 0X05
 BCD_7SEG
     ADDWF PCL,F
     RETLW  b'00111111'    ; 0
@@ -67,6 +68,7 @@ MAIN
     ;TX
     MOVLW 0x90
     MOVWF RCSTA
+
     ;-------------BK1-------------
     BCF STATUS,RP1
     BSF STATUS,RP0
@@ -125,7 +127,7 @@ MAIN
     ;INCIALIZACION BK0
     BCF STATUS,RP0
     BCF STATUS,RP1
-    
+
     ;INTERRUPCIONES
     MOVLW b'11110000'
     MOVWF INTCON
@@ -136,10 +138,13 @@ MAIN
     CLRF UMBRAL_CM
     CLRF CICLO_CNT
     CLRF FLAGS
+
     CLRF PORTE
     CLRF PORTD
+
     BCF PORTA,1 ;LED VERDE
     BSF PORTA,2 ;LED ROJO
+
     BCF PORTC,0
     BCF FLAGS,1
 
@@ -147,10 +152,11 @@ MAIN
 
     MOVLW .100
     MOVWF TMR0
+
 LOOP
+
     GOTO LOOP
 
-; === ISR  (unica) ===
 ISR
     MOVWF W_TEMP ;SAVE CONTEXT
     SWAPF STATUS,W
@@ -159,14 +165,19 @@ ISR
     BCF     STATUS, RP0 ;BK0
     BCF     STATUS, RP1
 
+    BTFSC INTCON,T0IF
+    GOTO RB0_TEST
     MOVLW .100 ;REFRESH T0
     MOVWF TMR0
     BCF INTCON,T0IF
+    GOTO CICLO
 
+RB0_TEST
     ;Atender rutina de emergencia
     BTFSC INTCON,INTF
     GOTO ISR_EMERGENCIA
 
+CICLO
     ;rutina de funcionamiento normal
     CALL RUTINA_DISPLAY
 
@@ -183,9 +194,9 @@ ISR
     CALL COMPARAR_Y_ACTUAR
     CALL ENVIAR_TRAMA
     GOTO RECUPERAR_CONTEXTO
-    
+
 REVISA_RX
-    BTFSC PIR1, RCIF 
+    BTFSC PIR1, RCIF
     CALL ISR_UART_RX
     GOTO RECUPERAR_CONTEXTO
 
@@ -212,132 +223,9 @@ ISR_EMERGENCIA
 
 ;-------------------------------------------------------
 
-MEDIR_HCSR04
-; --- Enviar pulso TRIG de 10µs ---
-    ; BSF PORTC, RC0
-    ; Esperar aprox 9µs
-    
-    MOVLW .3
-    MOVWF CONT_DELAY
-    BSF PORTC,0
-
-DELAY_10US
-    DECF CONT_DELAY
-    BTFSS STATUS,Z
-    GOTO DELAY_10US
-    BCF PORTC,0           ; fin del pulso TRIG
-
-
-    ; Polling de RC1, esperando que ECHO pase a 1
-
-    MOVLW   .170        ; ~1ms timeout
-    MOVWF   CONT_DELAY
-ESPERAR_ECHO
-    BTFSC   PORTC,RC1
-    GOTO    ECHO_HIGH
-    DECFSZ  CONT_DELAY,F
-    GOTO    ESPERAR_ECHO
-
-    ; Timeout
-    CLRF   DIST_CM
-    RETURN
-
-
-
-    ; Cuando ECHO = 1:
-    ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
-    ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
-ECHO_HIGH
-
-    CLRF TMR1H
-    CLRF TMR1L
-    BCF   PIR1, TMR1IF
-    
-ESPERAR_ECHO_BAJA
-    BTFSS   PORTC,RC1
-    GOTO    ECHO_LOW
-    BTFSC   PIR1, TMR1IF
-    GOTO    ECHO_TIMEOUT
-    GOTO    ESPERAR_ECHO_BAJA
-    
-ECHO_TIMEOUT
-    MOVLW   0xFF
-    MOVWF   DIST_CM
-    RETURN
-
-
-
-
-    ; Cuando ECHO baja (o timeout):
-    ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
-ECHO_LOW
-    MOVF TMR1H,0
-    MOVWF TMR1_H
-    MOVF TMR1L,0
-    MOVWF TMR1_L
-
-    ; CORREMOS 3 VECES LOS BITS DE LOS REGISTROS
-    BCF STATUS,C ; TMR1 * 2
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    BCF STATUS,C ; TMR1 * 4
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    BCF STATUS,C ;TMR1 * 8
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    ; SUMAMOS LOS ORIGNALES PARA HACER * 9
-    MOVF TMR1L,0
-    ADDWF TMR1_L
-    BTFSC STATUS,C
-    INCF TMR1_H
-    MOVF TMR1H,0
-    ADDWF TMR1_H
-
-    ;dividimos por 512, moviendo solo el registro alto un bit a la derecha, tenemos una tolerancia de +-1cm
-    BCF STATUS,C
-    RRF TMR1_H,1
-    MOVF TMR1_H,0
-    MOVWF DIST_CM
-    RETURN
-
-
-;----------------------------------------------
-
-RUTINA_DISPLAY
-    BCF PORTE,0
-    BCF PORTE,1
-
-    BTFSS DISP_SEL,0
-    GOTO SHOW_DECENAS
-    GOTO SHOW_UNIDADES
-
-SHOW_UNIDADES
-    MOVF UMBRAL_UNI, W
-    CALL BCD_7SEG
-    MOVWF PORTD
-    BSF PORTE,1
-
-    BCF DISP_SEL,0
-    RETURN
-
-SHOW_DECENAS
-    MOVF UMBRAL_DEC,W
-    CALL BCD_7SEG
-    MOVWF PORTD
-    BSF PORTE,0
-
-    BSF DISP_SEL,0
-    RETURN
-
-;-------------lectura ADC-----------
-
 ESPERA_ADC
-    BSF ADCON0,GO
-    BTFSC ADCON0,GO
+    BSF ADCON0,1 ;GO/DONE
+    BTFSC ADCON0,1
     GOTO ESPERA_ADC
 
     ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
@@ -385,6 +273,127 @@ BCD_FIN
     RETURN
 
 ;------------------------------
+
+MEDIR_HCSR04
+    ; Esperar aprox 9us, pulso trigger
+    MOVLW .3
+    MOVWF CONT_DELAY
+    BSF PORTC,0
+
+DELAY_10US
+    DECF CONT_DELAY,1
+    BTFSS STATUS,Z
+    GOTO DELAY_10US
+    BCF PORTC,0           ; fin del pulso TRIG
+
+
+    ; Polling de RC1, esperando que ECHO pase a 1
+
+    MOVLW   .170        ; ~1ms timeout
+    MOVWF   CONT_DELAY
+ESPERAR_ECHO
+    BTFSC   PORTC,RC1
+    GOTO    ECHO_HIGH
+    DECFSZ  CONT_DELAY,F
+    GOTO    ESPERAR_ECHO
+
+    ; Timeout
+    CLRF   DIST_CM
+    RETURN
+
+
+
+    ; Cuando ECHO = 1:
+    ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
+    ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
+ECHO_HIGH
+    CLRF TMR1H
+    CLRF TMR1L
+    BCF   PIR1, TMR1IF
+
+ESPERAR_ECHO_BAJA
+    BTFSS   PORTC,RC1
+    GOTO    ECHO_LOW
+    BTFSC   PIR1, TMR1IF
+    GOTO    ECHO_TIMEOUT
+    GOTO    ESPERAR_ECHO_BAJA
+
+ECHO_TIMEOUT
+    CLRF DIST_CM
+    RETURN
+
+
+
+
+    ; Cuando ECHO baja (o timeout):
+    ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
+ECHO_LOW
+
+    BCF T1CON, TMR1ON
+    MOVF TMR1H,0
+    MOVWF TMR1_H
+    MOVF TMR1L,0
+    MOVWF TMR1_L
+
+    ; CORREMOS 3 VECES LOS BITS DE LOS REGISTROS
+    BCF STATUS,C ; TMR1 * 2
+    RLF TMR1_L,1
+    RLF TMR1_H,1
+
+    BCF STATUS,C ; TMR1 * 4
+    RLF TMR1_L,1
+    RLF TMR1_H,1
+
+    BCF STATUS,C ;TMR1 * 8
+    RLF TMR1_L,1
+    RLF TMR1_H,1
+
+    ; SUMAMOS LOS ORIGNALES PARA HACER * 9
+    MOVF TMR1L,0
+    ADDWF TMR1_L
+    BTFSC STATUS,C
+    INCF TMR1_H
+    MOVF TMR1H,0
+    ADDWF TMR1_H
+
+    ;dividimos por 512, moviendo solo el registro alto un bit a la derecha, tenemos una tolerancia de +-1cm
+    BCF STATUS,C
+    RRF TMR1_H,1
+    MOVF TMR1_H,0
+    MOVWF DIST_CM
+    BSF T1CON, TMR1ON
+    RETURN
+
+
+;----------------------------------------------
+
+RUTINA_DISPLAY
+    BCF PORTE,0
+    BCF PORTE,1
+
+    BTFSS DISP_SEL,0
+    GOTO SHOW_DECENAS
+    GOTO SHOW_UNIDADES
+
+SHOW_UNIDADES
+    MOVF UMBRAL_UNI, W
+    CALL BCD_7SEG
+    MOVWF PORTD
+    BSF PORTE,1
+
+    BCF DISP_SEL,0
+    RETURN
+
+SHOW_DECENAS
+    MOVF UMBRAL_DEC,W
+    CALL BCD_7SEG
+    MOVWF PORTD
+    BSF PORTE,0
+
+    BSF DISP_SEL,0
+    RETURN
+
+;------------------------
 
 COMPARAR_Y_ACTUAR   ; HU-02
     ;Comparar DIST_CM con UMBRAL_CM
@@ -526,17 +535,12 @@ BIN_DEC_DONE
     ADDLW   '0'
     MOVWF   TX_DEC
     RETURN
-    
+
 ;---------ISR DE RECEPCION---------------
 
 ISR_UART_RX
-    ;VER BYTE RECIBIDO
-    MOVF    RCREG, W
-    MOVWF   TEMP         
-
-
     BTFSS   RCSTA, OERR ;ERROR DE RECEPCION?
-    GOTO    CHECK_CMD    
+    GOTO    CHECK_CMD
 
     ; Resetear OERR
     BCF     RCSTA, CREN
@@ -544,25 +548,29 @@ ISR_UART_RX
     RETURN
 
 CHECK_CMD
-    ; ¿Es 'R' (0x52)?  reanudar
+    ;VER BYTE RECIBIDO
+    MOVF    RCREG, W
+    MOVWF   TEMP
+
+    ; ï¿½Es 'R' (0x52)?  reanudar
     MOVLW   'R'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_REANUDAR
 
-    ; ¿Es 'P' (0x50)?
+    ; ï¿½Es 'P' (0x50)?
     MOVLW   'P'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_PARAR
 
-   
+
     RETURN
 
 
 CMD_REANUDAR
     BCF     FLAGS, 1            ; FLAG_EMERGENCY = 0
-    
+
     BSF     PORTA, 1            ; LED verde ON
     BCF     PORTA, 2            ; LED rojo OFF
     CALL PWM_ON
@@ -572,7 +580,7 @@ CMD_REANUDAR
 CMD_PARAR
     ; Cortar motor
     CALL    PWM_OFF
-    
+
     BCF     PORTA, 1            ; LED verde OFF
     BSF     PORTA, 2            ; LED rojo ON
 
