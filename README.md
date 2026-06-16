@@ -1,11 +1,11 @@
 # Sierra Segura — PIC16F887
 > Electrónica Digital II - Universidad Nacional de Córdoba 
-> Integrantes: > * Nombre Apellido
+> Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
 > Profesor: Marcos Blasco
 
 ---
 
-## Descripción general del proyecto
+## 1. Descripción general del proyecto
 
 El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes.Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata.Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
 
@@ -16,7 +16,7 @@ El sistema es capaz de:
 - Permitir la configuración de un umbral de seguridad utilizando un potenciómetro.
 - Visualizar el valor del umbral configurado en dos displays de 7 segmentos.
 - Detener el motor de forma inmediata mediante un boton.
-- Comunicar el estado del sistema a una PC a través de UART.
+- Comunicar el estado del sistema a una PC a través de USART.
 
 El sistema no incluye:
 - Control de una sierra industrial real.
@@ -25,10 +25,35 @@ El sistema no incluye:
 
 ---
 
-### Arquitectura del sistema: Hardware y Software
+## 2. Arquitectura del sistema: Hardware y Software
+- COMPLETAR
+- COMPLETAR
+- COMPLETAR
 
+## 3. Especificaciones eléctricas, alimentación y entorno
+
+### Parámetros de alimentación y consumo 
+- Tensión de operación del sistema: 5 V.
+- Método de alimentación: Fuente de alimentación de 5 V.
+- Consumo estimado en modo activo: COMPLETAR
+- Modo de bajo consumo: COMPLETAR
+
+### Entorno
+- Herramientas de software: MPLAB X IDE y ensamblador MPASM.
+- Método de programación: Bootloader.
+- Configuración de bits (Fuses Críticos): COMPLETAR
+- Periféricos internos utilizados:ADC / CCP1 / TIMER2 / EUSART / COMPLETAR??
+- Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
+
+## 4. Proceso de integración y desarrollo 
+
+- Etapa 1 (validacion inicial): 
 ## Hardware requerido
 
+
+## 5. Ensayos, pruebas y resultados 
+
+## 6. Estructura del repositorio
 | Componente | Cantidad | Notas |
 |------------|----------|-------|
 | PIC16F887 | 1 | DIP-40 |
