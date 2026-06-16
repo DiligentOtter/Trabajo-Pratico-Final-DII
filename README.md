@@ -1,7 +1,7 @@
 # Sierra Segura — PIC16F887
-> Electrónica Digital II - Universidad Nacional de Córdoba 
-> Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
-> Profesor: Marcos Blasco
+Electrónica Digital II - Universidad Nacional de Córdoba 
+Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
+Profesor: Marcos Blasco
 
 ---
 
@@ -30,6 +30,8 @@ El sistema no incluye:
 - COMPLETAR
 - COMPLETAR
 
+---
+
 ## 3. Especificaciones eléctricas, alimentación y entorno
 
 ### Parámetros de alimentación y consumo 
@@ -45,15 +47,18 @@ El sistema no incluye:
 - Periféricos internos utilizados:ADC / CCP1 / TIMER2 / EUSART / COMPLETAR??
 - Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
 
+---
 ## 4. Proceso de integración y desarrollo 
 
 - Etapa 1 (validacion inicial): 
-## Hardware requerido
 
 
+---
 ## 5. Ensayos, pruebas y resultados 
 
+---
 ## 6. Estructura del repositorio
+
 | Componente | Cantidad | Notas |
 |------------|----------|-------|
 | PIC16F887 | 1 | DIP-40 |
