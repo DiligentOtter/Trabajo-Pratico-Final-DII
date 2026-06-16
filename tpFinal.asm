@@ -1,4 +1,4 @@
-    LIST p=16F887
+   LIST p=16F887
     #INCLUDE "P16F887.inc"
     RADIX HEX
 
@@ -10,20 +10,20 @@
 
 ; === Variables (CONTRATO + privadas) ===
     CBLOCK 0x20
-        DIST_CM         ;0x20
-        UMBRAL_CM       ;0x21
-        UMBRAL_DEC      ;0x22
-        UMBRAL_UNI      ;0x23
-        DISP_SEL        ;0x24
-        CICLO_CNT       ;0x25
-        FLAGS           ;0x26
-        TEMP            ;0x27
-        ADC_RES         ;0x28
-        TMR1_H          ;0x29
-        TMR1_L          ;0x2A
-        CONT_DELAY      ;0x2B
-        TX_DEC          ;0x2C  
-        TX_UNI          ;0x2D  
+        DIST_CM         ; 0x20
+        UMBRAL_CM       ; 0x21
+        UMBRAL_DEC      ; 0x22
+        UMBRAL_UNI      ; 0x23
+        DISP_SEL        ; 0x24
+        CICLO_CNT       ; 0x25
+        FLAGS           ; 0x26
+        TEMP            ; 0x27
+        ADC_RES         ; 0x28
+        TMR1_H          ; 0x29
+        TMR1_L          ; 0x2A
+        CONT_DELAY      ; 0x2B
+        TX_DEC          ; 0x2C  ? decenas ASCII (HU-05)
+        TX_UNI          ; 0x2D  ? unidades ASCII (HU-05)
     ENDC
     CBLOCK 0x7D
         W_TEMP
@@ -37,18 +37,20 @@
 
 BCD_7SEG
     ADDWF PCL,F
-    RETLW  b'00111111'    ;0
-    RETLW  b'00000110'    ;1
-    RETLW  b'01011011'    ;2
-    RETLW  b'01001111'    ;3
-    RETLW  b'01100110'    ;4
-    RETLW  b'01101101'    ;5
-    RETLW  b'01111101'    ;6
-    RETLW  b'00000111'    ;7
-    RETLW  b'01111111'    ;8
-    RETLW  b'01101111'    ;9
+    RETLW  b'00111111'    ; 0
+    RETLW  b'00000110'    ; 1
+    RETLW  b'01011011'    ; 2
+    RETLW  b'01001111'    ; 3
+    RETLW  b'01100110'    ; 4
+    RETLW  b'01101101'    ; 5
+    RETLW  b'01111101'    ; 6
+    RETLW  b'00000111'    ; 7
+    RETLW  b'01111111'    ; 8
+    RETLW  b'01101111'    ; 9
 
+; === MAIN ===
 MAIN
+    ; <<< puertos y perifericos>>>
 
     ;------------BK0---------------
     BCF STATUS,RP0
@@ -81,7 +83,7 @@ MAIN
     MOVWF   TXSTA
 
     ;T0 CONFIG
-    MOVLW   0x05        ;prescaler 1:64 for Timer0
+    MOVLW   0x05        ; prescaler 1:64 for Timer0
     MOVWF   OPTION_REG
 
     ; I/O PORTS
@@ -107,6 +109,7 @@ MAIN
     ;PORTE | 7SEG SELCT
     CLRF TRISE
 
+
     ;--------------BK3--------------------
     ;CONFIGURACIONES BK 3, ANALOGIC REGS
     BSF STATUS,RP0
@@ -117,6 +120,8 @@ MAIN
     BCF ANSEL,2 ;LED ROJO
     CLRF ANSELH
 
+
+
     ;INCIALIZACION BK0
     BCF STATUS,RP0
     BCF STATUS,RP1
@@ -124,6 +129,8 @@ MAIN
     ;INTERRUPCIONES
     MOVLW b'11110000'
     MOVWF INTCON
+
+
 
     CLRF DIST_CM
     CLRF UMBRAL_CM
@@ -141,20 +148,17 @@ MAIN
     MOVLW .100
     MOVWF TMR0
 LOOP
-    BTFSS   FLAGS,0
-    GOTO    LOOP
-    CALL    ENVIAR_TRAMA
-    BCF     FLAGS,0
-    GOTO    LOOP
+    GOTO LOOP
 
 ; === ISR  (unica) ===
 ISR
-    MOVWF W_TEMP 
+    MOVWF W_TEMP ;SAVE CONTEXT
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
 
     BCF     STATUS, RP0 ;BK0
     BCF     STATUS, RP1
+
     MOVLW .100 ;REFRESH T0
     MOVWF TMR0
     BCF INTCON,T0IF
@@ -170,15 +174,14 @@ ISR
     MOVLW .10
     SUBWF CICLO_CNT,W
     BTFSS STATUS,Z
-    
     GOTO REVISA_RX
     CLRF CICLO_CNT
 
     ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
     CALL ESPERA_ADC
-    CALL MEDIR_HCSR04  ;SENSOR
+    CALL MEDIR_HCSR04
     CALL COMPARAR_Y_ACTUAR
-    BSF FLAGS,0
+    CALL ENVIAR_TRAMA
     GOTO RECUPERAR_CONTEXTO
     
 REVISA_RX
@@ -204,15 +207,15 @@ ISR_EMERGENCIA
     BSF PORTA,2      ; rojo ON
 
     BSF FLAGS,1       ; FLAG_EMERGENCY = 1
-    BCF INTCON,T0IF 
+
     GOTO RECUPERAR_CONTEXTO
 
 ;-------------------------------------------------------
 
 MEDIR_HCSR04
-; --- Enviar pulso TRIG de 10Âµs ---
+; --- Enviar pulso TRIG de 10µs ---
     ; BSF PORTC, RC0
-    ; Esperar aprox 9Âµs
+    ; Esperar aprox 9µs
     
     MOVLW .3
     MOVWF CONT_DELAY
@@ -234,26 +237,39 @@ ESPERAR_ECHO
     GOTO    ECHO_HIGH
     DECFSZ  CONT_DELAY,F
     GOTO    ESPERAR_ECHO
-    CALL    ECHO_TIMEOUT
-    
+
+    ; Timeout
+    CLRF   DIST_CM
+    RETURN
+
+
+
     ; Cuando ECHO = 1:
     ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
     ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
 ECHO_HIGH
+
     CLRF TMR1H
     CLRF TMR1L
+    BCF   PIR1, TMR1IF
     
 ESPERAR_ECHO_BAJA
     BTFSS   PORTC,RC1
     GOTO    ECHO_LOW
-    BTFSC   TMR1IF,4
+    BTFSC   PIR1, TMR1IF
     GOTO    ECHO_TIMEOUT
     GOTO    ESPERAR_ECHO_BAJA
     
 ECHO_TIMEOUT
-    CLRF DIST_CM
+    MOVLW   0xFF
+    MOVWF   DIST_CM
     RETURN
 
+
+
+
+    ; Cuando ECHO baja (o timeout):
+    ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
 ECHO_LOW
     MOVF TMR1H,0
     MOVWF TMR1_H
@@ -288,6 +304,9 @@ ECHO_LOW
     MOVWF DIST_CM
     RETURN
 
+
+;----------------------------------------------
+
 RUTINA_DISPLAY
     BCF PORTE,0
     BCF PORTE,1
@@ -297,7 +316,7 @@ RUTINA_DISPLAY
     GOTO SHOW_UNIDADES
 
 SHOW_UNIDADES
-    MOVF UMBRAL_UNI,W
+    MOVF UMBRAL_UNI, W
     CALL BCD_7SEG
     MOVWF PORTD
     BSF PORTE,1
@@ -313,6 +332,8 @@ SHOW_DECENAS
 
     BSF DISP_SEL,0
     RETURN
+
+;-------------lectura ADC-----------
 
 ESPERA_ADC
     BSF ADCON0,GO
@@ -340,10 +361,11 @@ DIV13
     GOTO DIV13
 
 FIN_DIV13
-    ;Conversion a BCD
-    CLRF  UMBRAL_DEC
 
-    MOVF  UMBRAL_CM,W
+    ;Conversion a BCD
+    CLRF UMBRAL_DEC
+
+    MOVF UMBRAL_CM,W
     MOVWF UMBRAL_UNI
 
 BCD_LOOP
@@ -351,10 +373,10 @@ BCD_LOOP
     SUBWF UMBRAL_UNI,F
 
     BTFSS STATUS,C
-    GOTO  BCD_FIN
+    GOTO BCD_FIN
 
-    INCF  UMBRAL_DEC,F
-    GOTO  BCD_LOOP
+    INCF UMBRAL_DEC,F
+    GOTO BCD_LOOP
 
 BCD_FIN
     MOVLW .10
@@ -362,36 +384,40 @@ BCD_FIN
 
     RETURN
 
+;------------------------------
+
 COMPARAR_Y_ACTUAR   ; HU-02
     ;Comparar DIST_CM con UMBRAL_CM
 
-    MOVF    UMBRAL_CM,W
-    SUBWF   DIST_CM,W
+    MOVF UMBRAL_CM,W
+    SUBWF DIST_CM,W
 
-    BTFSS   STATUS,C
+    BTFSS   STATUS, C
     GOTO    MOTOR_OFF
-    BTFSC   FLAGS,1
+    BTFSC   FLAGS, 1
     GOTO    MOTOR_OFF
     GOTO    MOTOR_ON
 
 MOTOR_ON
     CALL    PWM_ON
-    BSF     PORTA,1  ; LED verde
-    BCF     PORTA,2  ; LED rojo
-    BSF     FLAGS,2  ; FLAG_MOTOR
+    BSF     PORTA, 1  ; LED verde
+    BCF     PORTA, 2  ; LED rojo
+    BSF     FLAGS, 2  ; FLAG_MOTOR
     RETURN
 
 MOTOR_OFF
     CALL    PWM_OFF
-    BCF     PORTA,1
-    BSF     PORTA,2
-    BCF     FLAGS,2
+    BCF     PORTA, 1
+    BSF     PORTA, 2
+    BCF     FLAGS, 2
     RETURN
+
 
 PWM_ON ;(motor 100% duty)
     MOVLW b'11111111'
     MOVWF CCPR1L
     RETURN
+
 
 PWM_OFF ;(motor a 0% duty)
     CLRF CCPR1L
@@ -444,7 +470,6 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     CALL TX_BYTE
     BTFSS FLAGS,2
     GOTO MOTOR_STATE_OFF
-    
 MOTOR_STATE_ON
     MOVLW 'O'
     CALL TX_BYTE
@@ -460,7 +485,7 @@ MOTOR_STATE_OFF
     MOVLW 'F'
     CALL TX_BYTE
 END_MOTOR
-    
+
     ;FIN TRAMA
     MOVLW 0X0D
     CALL TX_BYTE
@@ -502,66 +527,78 @@ BIN_DEC_DONE
     MOVWF   TX_DEC
     RETURN
     
+;---------ISR DE RECEPCION---------------
+
 ISR_UART_RX
     ;VER BYTE RECIBIDO
-    MOVF   RCREG, W
-    MOVWF  TEMP         
+    MOVF    RCREG, W
+    MOVWF   TEMP         
 
-    BTFSS  RCSTA,OERR ;ERROR DE RECEPCION?
-    GOTO   CHECK_CMD    
+
+    BTFSS   RCSTA, OERR ;ERROR DE RECEPCION?
+    GOTO    CHECK_CMD    
 
     ; Resetear OERR
-    BCF     RCSTA,CREN
-    BSF     RCSTA,CREN
+    BCF     RCSTA, CREN
+    BSF     RCSTA, CREN
     RETURN
 
 CHECK_CMD
+    ; ¿Es 'R' (0x52)?  reanudar
     MOVLW   'R'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_REANUDAR
 
+    ; ¿Es 'P' (0x50)?
     MOVLW   'P'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_PARAR
 
+   
     RETURN
 
+
 CMD_REANUDAR
-    BCF   FLAGS,1            ; FLAG_EMERGENCY = 0
+    BCF     FLAGS, 1            ; FLAG_EMERGENCY = 0
     
-    BSF   PORTA,1            ; LED verde ON
-    BCF   PORTA,2            ; LED rojo OFF
-    CALL  PWM_ON
-    
+    BSF     PORTA, 1            ; LED verde ON
+    BCF     PORTA, 2            ; LED rojo OFF
+    CALL PWM_ON
     RETURN
+
 
 CMD_PARAR
     ; Cortar motor
-    CALL PWM_OFF
+    CALL    PWM_OFF
     
-    BCF  PORTA,1            ; LED verde OFF
-    BSF  PORTA,2            ; LED rojo ON
+    BCF     PORTA, 1            ; LED verde OFF
+    BSF     PORTA, 2            ; LED rojo ON
 
-    BSF  FLAGS,1            ; FLAG_EMERGENCY = 1
+    BSF     FLAGS, 1            ; FLAG_EMERGENCY = 1
 
     RETURN
 
+;-------------------------------
+
+
 PWM_INIT
-    MOVLW 0X04 ;'00000100'
+
+    MOVLW b'00000100'
     MOVWF T2CON
 
     BCF STATUS,RP1 ;BK1
     BSF STATUS,RP0
 
-    MOVLW 0XFF  ;'11111111'
+    MOVLW b'11111111'
     MOVWF PR2
 
     BCF STATUS,RP1 ;BK0
     BCF STATUS,RP0
 
-    MOVLW 0X0C    ;'00001100'
+
+    MOVLW b'00001100'
     MOVWF CCP1CON
 
     CLRF CCPR1L
