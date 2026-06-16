@@ -15,18 +15,16 @@ El sistema es capaz de:
 - Permitir la configuración de un umbral de seguridad utilizando un potenciómetro.
 - Visualizar el valor del umbral configurado en dos displays de 7 segmentos.
 - Detener el motor de forma inmediata mediante un boton.
-- Comunicar el estado del sistema a una PC a través de USART.
+- Comunicar el estado del sistema a una PC a través de UART.
 
 El sistema no incluye:
 - Control de una sierra industrial real.
 - Registro histórico de eventos.
-- COMPLETAR SI LE QUIEREN AGREGAR ALGO MAS
 
 ### Posibles etapas siguientes 
-- Incluir un sistema de alarmas sonoras y visuales previas a la detención del motor para mejorar la seguridad del operario.
+- Incluir un sistema de alarmas sonoras previas a la detención del motor para mejorar la seguridad del operario.
 - Implementar rampas de aceleración y desaceleración del motor para evitar arranques bruscos.
 - Mejorar UART enviando mensajes estructurados.
-- AGREGAR MAS SI CONSIDERAN
 
 ---
 ## 2. Arquitectura del sistema: Hardware y Software
@@ -40,23 +38,28 @@ El sistema no incluye:
 ### Parámetros de alimentación y consumo 
 - Tensión de operación del sistema: 5 V.
 - Método de alimentación: Fuente de alimentación de 5 V.
-- Consumo estimado en modo activo: COMPLETAR
-- Modo de bajo consumo: COMPLETAR
+- Consumo estimado en modo activo: Aprox. de 200 a 250 mA
 
 ### Entorno
 - Herramientas de software: MPLAB X IDE y ensamblador MPASM.
-- Método de programación: Bootloader.
-- Configuración de bits (Fuses Críticos): COMPLETAR
-* Oscilador: COMP
-* Watchdog Timer (WDT): COMP
-* Master Clear (MCLRE): COMP
-- Periféricos internos utilizados: ADC / CCP1 / TIMER2 / EUSART / COMPLETAR??
+- Método de programación: UART.
+- Configuración de bits: 
+   * PWRTE: ON
+   * MCLRE: ON
+   * BOREN: ON
+   * WDT: OFF
+   * FOSC HS (oscilador ext): 
+   
+- Periféricos internos utilizados: ADC / CCP1 / TIMER0 / TIMER1 / TIMER2 / EUSART / PWM
 - Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
 
 ---
 ## 4. Proceso de integración y desarrollo 
 
 - Etapa 1 (validacion inicial): 
+- Etapa 2 (adquisición/comunicación):
+- Etapa 3 (integración lógica):
+- Etapa 4 (sistema completo):
 
 
 ---
