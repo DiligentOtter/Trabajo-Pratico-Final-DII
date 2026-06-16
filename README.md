@@ -1,6 +1,6 @@
 # Sierra Segura — PIC16F887
 Electrónica Digital II - Universidad Nacional de Córdoba 
-- Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
+- Integrantes: Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
 - Profesor: Marcos Blasco
 
 ---
@@ -21,7 +21,13 @@ El sistema es capaz de:
 El sistema no incluye:
 - Control de una sierra industrial real.
 - Registro histórico de eventos.
-- 
+- COMPLETAR SI LE QUIEREN AGREGAR ALGO MAS
+
+### Posibles etapas siguientes 
+- Incluir un sistema de alarmas sonoras y visuales previas a la detención del motor para mejorar la seguridad del operario.
+- Implementar rampas de aceleración y desaceleración del motor para evitar arranques bruscos.
+- Mejorar UART enviando mensajes estructurados.
+- AGREGAR MAS SI CONSIDERAN
 
 ---
 
@@ -44,7 +50,10 @@ El sistema no incluye:
 - Herramientas de software: MPLAB X IDE y ensamblador MPASM.
 - Método de programación: Bootloader.
 - Configuración de bits (Fuses Críticos): COMPLETAR
-- Periféricos internos utilizados:ADC / CCP1 / TIMER2 / EUSART / COMPLETAR??
+* Oscilador: COMP
+* Watchdog Timer (WDT): COMP
+* Master Clear (MCLRE): COMP
+- Periféricos internos utilizados: ADC / CCP1 / TIMER2 / EUSART / COMPLETAR??
 - Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
 
 ---
