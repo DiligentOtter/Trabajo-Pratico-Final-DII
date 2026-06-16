@@ -1,17 +1,31 @@
 # Sierra Segura — PIC16F887
-> Sistema de corte automático de motor por detección de proximidad.  
-> Assembly · Cristal externo 4 MHz · MPLAB X / XC8 Assembler
+> Electrónica Digital II - Universidad Nacional de Córdoba 
+> Integrantes: > * Nombre Apellido
+> Profesor: Marcos Blasco
 
 ---
 
-## Descripción
+## Descripción general del proyecto
 
-El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si esa distancia cae por debajo de un umbral configurable, corta el motor DC seteando el PWM a 0% (duty cycle = 0). El umbral se ajusta con un potenciómetro y se visualiza en dos displays de 7 segmentos. Un botón de emergencia detiene el motor por INT0. El estado se reporta por UART a la PC.
+El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes.Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata.Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
 
-> **Prototipo:** motor DC pequeño controlado por PWM via transistor NPN (TIP31C o similar).  
+### Alcances del proyecto
 
+El sistema es capaz de:
+- Medir la distancia entre la mano del operario y la zona de corte.
+- Permitir la configuración de un umbral de seguridad utilizando un potenciómetro.
+- Visualizar el valor del umbral configurado en dos displays de 7 segmentos.
+- Detener el motor de forma inmediata mediante un boton.
+- Comunicar el estado del sistema a una PC a través de UART.
+
+El sistema no incluye:
+- Control de una sierra industrial real.
+- Registro histórico de eventos.
+- 
 
 ---
+
+### Arquitectura del sistema: Hardware y Software
 
 ## Hardware requerido
 
