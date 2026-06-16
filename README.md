@@ -1,7 +1,7 @@
 # Sierra Segura — PIC16F887
 Electrónica Digital II - Universidad Nacional de Córdoba 
-Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
-Profesor: Marcos Blasco
+- Integrantes:Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
+- Profesor: Marcos Blasco
 
 ---
 
