@@ -4,7 +4,6 @@ Electrónica Digital II - Universidad Nacional de Córdoba
 - Profesor: Marcos Blasco
 
 ---
-
 ## 1. Descripción general del proyecto
 
 El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes.Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata.Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
@@ -30,14 +29,12 @@ El sistema no incluye:
 - AGREGAR MAS SI CONSIDERAN
 
 ---
-
 ## 2. Arquitectura del sistema: Hardware y Software
 - COMPLETAR
 - COMPLETAR
 - COMPLETAR
 
 ---
-
 ## 3. Especificaciones eléctricas, alimentación y entorno
 
 ### Parámetros de alimentación y consumo 
