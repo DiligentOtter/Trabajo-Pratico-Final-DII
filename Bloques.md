@@ -1,3 +1,4 @@
+```mermaid
 flowchart TB
     subgraph HW ["⚙️ Hardware"]
         POT["Potenciómetro\n10 kΩ"]
@@ -78,3 +79,4 @@ flowchart TB
     class POT,SR04,BTN,PC,MOTOR,DISP,LEDG,LEDR hw
     class ADC,T0,T1,CCP,UART,INT0 per
     class MAIN,ISR_D,ISR_EMG,ISR_T0,RUT_DISP,RUT_MED,RUT_CMP,RUT_TX sw
+```
