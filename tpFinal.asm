@@ -5,8 +5,6 @@
     __CONFIG _CONFIG1, _FOSC_HS & _WDTE_OFF & _PWRTE_ON & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _IESO_OFF & _FCMEN_OFF & _LVP_OFF
     __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
 
-; Al integrar cada HU0X-*.asm: borrar su __CONFIG y su CBLOCK
-; (queda solo el de tpFinal).
 
 ; === Variables (CONTRATO + privadas) ===
     CBLOCK 0x20
@@ -62,7 +60,7 @@ MAIN
     MOVWF T1CON
 
     ;ADC
-    MOVLW 0x41        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
+    MOVLW 0x01        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
     MOVWF ADCON0
 
     ;TX
@@ -147,6 +145,7 @@ MAIN
 
     BCF PORTC,0
     BCF FLAGS,1
+    BSF PORTB,0
 
     CALL PWM_INIT
 
@@ -165,17 +164,18 @@ ISR
     BCF     STATUS, RP0 ;BK0
     BCF     STATUS, RP1
 
-    BTFSC INTCON,T0IF
-    GOTO RB0_TEST
+    BTFSC INTCON,INTF
+    GOTO ISR_EMERGENCIA
+
+    BTFSS INTCON,T0IF
+    GOTO RECUPERAR_CONTEXTO
+
     MOVLW .100 ;REFRESH T0
     MOVWF TMR0
     BCF INTCON,T0IF
+
     GOTO CICLO
 
-RB0_TEST
-    ;Atender rutina de emergencia
-    BTFSC INTCON,INTF
-    GOTO ISR_EMERGENCIA
 
 CICLO
     ;rutina de funcionamiento normal
@@ -229,8 +229,14 @@ ESPERA_ADC
     GOTO ESPERA_ADC
 
     ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
+    BCF STATUS,RP1 ;bk1
+    BSF STATUS,RP0
+  
     MOVF ADRESL,W
     MOVWF ADC_RES
+
+    BCF STATUS,RP1 ;bk0
+    BCF STATUS,RP0
 
     ;UMBRAL_CM = 5 + (ADC_RES/13)
     MOVF ADC_RES,W
