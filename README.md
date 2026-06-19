@@ -120,7 +120,7 @@ flowchart TD
    * MCLRE: ON
    * BOREN: ON
    * WDT: OFF
-   * FOSC HS (oscilador ext): 
+   * FOSC HS (oscilador ext): OFF
    
 - Periféricos internos utilizados: ADC / CCP1 / TIMER0 / TIMER1 / TIMER2 / EUSART / PWM
 - Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
@@ -128,10 +128,10 @@ flowchart TD
 ---
 ## 4. Proceso de integración y desarrollo 
 
-- Etapa 1 (validacion inicial): Se realizó la verificación de los puertos del microcontrolador que se iban a utilizar en el proyecto y se configuraron.
+- Etapa 1 (validacion inicial): Se realizó la verificación de los puertos del microcontrolador que se iban a utilizar en el proyecto y se configuraron.Posteriormente, se efectuó la prueba del sensor ultrasónico HC-SR04 para verificar su correcto funcionamiento
 - Etapa 2 (adquisición/comunicación): Se implementó la lectura del ADC para obtener el valor del potenciómetro que se usa como umbral de seguridad.También se agregó la comunicación UART para poder enviar datos a la PC y facilitar la depuración del sistema. Además, en esta etapa también se comenzaron a revisar y diseñar las rutinas de servicio de interrupción necesarias para el funcionamiento del sistema.
 - Etapa 3 (integración lógica): Se desarrolló la lógica principal del sistema, comparando la distancia medida por el HC-SR04 con el umbral configurado. Además, se implementó el control del motor mediante PWM y el uso de la interrupción externa para el botón de emergencia.
-- Etapa 4 (sistema completo):
+- Etapa 4 (sistema completo): Se integraron todos los módulos desarrollados previamente, verificando el funcionamiento conjunto. También se realizó la simulación completa del sistema en Proteus para validar su comportamiento antes de la implementación final.
 <img width="1920" height="2560" alt="5017097186071743562" src="https://github.com/user-attachments/assets/07cf246f-33d9-4eb2-86a6-eab31dd1906d" />
 
 
