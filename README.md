@@ -408,16 +408,23 @@ bit 2 = FLAG_MOTOR     ; estado actual del motor
 
 ---
 
-## UI 0.0.1
+## UI 0.1.1
 Se desarrollo un simple frontend utilizando las tecnoligias de Svelte, Vite, Tailwind y Shadcn para el desarrollo de los componentes del frontend
 
 La ui destaca por la posibilidad de ver en vivo la distancia actual, el umbral de corte y una terminal de entrada para ver la comunicacion serial entrante
 
+<img width="1873" height="816" alt="Screenshot 2026-06-18 224443" src="https://github.com/user-attachments/assets/dd5702d8-6353-4abb-9216-2e149a977f32" />
+
 
 Ademas, en caso de superarse el umbral, el recuadro de distancia actual muestra un mensaje por pantalla y cambia de color a rojo
 
+<img width="1875" height="956" alt="Screenshot 2026-06-18 230948" src="https://github.com/user-attachments/assets/60d4b1a4-7ecc-43f5-882a-69321a5c5237" />
+
 
 Tambien se ofrece la posibilidad de enviar los comandos de Reanudad y Parar directamente desde la ui, mostrando el ultimo comando envidado.
+
+<img width="932" height="192" alt="Screenshot 2026-06-19 170123" src="https://github.com/user-attachments/assets/ebc5c7c7-8e6b-4267-9418-d2c67f9d5ac0" />
+
 
 Por otro lado en caso de no disponer de un pic se puede entrar en un modo simulacion que muestra numeros aleatorios simulando los datos de telemetria
 
