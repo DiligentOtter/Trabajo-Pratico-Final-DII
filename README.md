@@ -6,7 +6,7 @@ Electrónica Digital II - Universidad Nacional de Córdoba
 ---
 ## 1. Descripción general del proyecto
 
-El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes.Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata.Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
+El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes. Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata. Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
 
 ### Alcances del proyecto
 
@@ -25,7 +25,8 @@ El sistema no incluye:
 - Incluir un sistema de alarmas sonoras previas a la detención del motor para mejorar la seguridad del operario.
 - Implementar rampas de aceleración y desaceleración del motor para evitar arranques bruscos.
 - Mejorar UART enviando mensajes estructurados.
-- Analisis de datos de telemetria y algoritmos de actuacion
+- Analisis de datos de telemetria y algoritmos de actuacion.
+- Posibilidad de controlar la velocidad del motor.
 
 
 ---
@@ -128,10 +129,10 @@ flowchart TD
 ---
 ## 4. Proceso de integración y desarrollo 
 
-- Etapa 1 (validacion inicial): Se realizó la verificación de los puertos del microcontrolador que se iban a utilizar en el proyecto y se configuraron.Posteriormente, se efectuó la prueba del sensor ultrasónico HC-SR04 para verificar su correcto funcionamiento
-- Etapa 2 (adquisición/comunicación): Se implementó la lectura del ADC para obtener el valor del potenciómetro que se usa como umbral de seguridad.También se agregó la comunicación UART para poder enviar datos a la PC y facilitar la depuración del sistema. Además, en esta etapa también se comenzaron a revisar y diseñar las rutinas de servicio de interrupción necesarias para el funcionamiento del sistema.
+- Etapa 1 (validacion inicial): Se realizó la verificación de los puertos del microcontrolador que se iban a utilizar en el proyecto y se configuraron. Posteriormente, se efectuó la prueba del sensor ultrasónico HC-SR04 para verificar su correcto funcionamiento
+- Etapa 2 (adquisición/comunicación): Se implementó la lectura del ADC para obtener el valor del potenciómetro que se usa como umbral de seguridad. También se agregó la comunicación UART para poder enviar datos a la PC y facilitar la depuración del sistema. Además, en esta etapa también se comenzaron a revisar y diseñar las rutinas de servicio de interrupción necesarias para el funcionamiento del mismo.
 - Etapa 3 (integración lógica): Se desarrolló la lógica principal del sistema, comparando la distancia medida por el HC-SR04 con el umbral configurado. Además, se implementó el control del motor mediante PWM y el uso de la interrupción externa para el botón de emergencia.
-- Etapa 4 (sistema completo): Se integraron todos los módulos desarrollados previamente, verificando el funcionamiento conjunto. También se realizó la simulación completa del sistema en Proteus para validar su comportamiento antes de la implementación final.
+- Etapa 4 (sistema completo): Se integraron todos los módulos desarrollados previamente, verificando el funcionamiento conjunto. También se realizó la simulación completa del sistema en Proteus para verificar su comportamiento antes de la implementación final.
 <img width="1920" height="2560" alt="5017097186071743562" src="https://github.com/user-attachments/assets/07cf246f-33d9-4eb2-86a6-eab31dd1906d" />
 
 
