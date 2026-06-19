@@ -57,10 +57,7 @@ flowchart TD
     DISP --> INC[CICLO_CNT++]
     INC --> CNT{CICLO_CNT\n== 10?}
 
-    CNT -->|NO| RX{¿RCIF?}
-    RX -->|SÍ| UART_RX[Leer RCREG\nCMD R → limpiar emergencia\nCMD P → parar motor]
-    RX -->|NO| RET2([RETFIE])
-    UART_RX --> RET2
+    CNT -->|NO| RET2([RETFIE])
 
     CNT -->|SÍ| RST[CICLO_CNT = 0]
     RST --> ADC[Leer ADC AN0\nUMBRAL = 5 + ADC/13\nConvertir a BCD]
@@ -341,7 +338,6 @@ BCF     OPTION_REG, INTEDG  ; INT0 por flanco descendente
 | CCP1CON | `0x0C` | Modo PWM |
 | CCPR1L | `0x00` / `0xFF` | Duty cycle motor OFF / ON |
 | TXSTA | `0x24` | UART TX, async, BRGH=1 |
-| RCSTA | `0x90` | UART RX, serial port ON |
 | SPBRG | `0x19` | 9600 bps a 4 MHz |
 | INTCON | `0xB0` | GIE=1, TMR0IE=1, INTE=1 |
 | TRISC2 | `0` | RC2 como salida (CCP1/PWM) |
@@ -401,18 +397,9 @@ SHOW_DEC:
 
 **TX (PIC → PC)** cada 100 ms:
 ```
-D:12cm U:08cm M:ON\r\n
-D:05cm U:08cm M:OFF\r\n
+D:12cm U:08cm\r\n
+D:05cm U:08cm\r\n
 ```
-
-**RX (PC → PIC):**
-| Comando | Acción |
-|---------|--------|
-| `R` | Reanuda motor (si no hay obstrucción activa) |
-| `P` | Para el motor, activa FLAG_EMERGENCY |
-
-Configuración terminal: **9600 8N1**, sin control de flujo.
-
 ---
 
 ## Variables RAM (Bank 0)
