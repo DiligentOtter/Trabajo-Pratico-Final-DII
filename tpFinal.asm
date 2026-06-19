@@ -191,7 +191,6 @@ RECUPERAR_CONTEXTO
     RETFIE
 
 ISR_EMERGENCIA
-
     BCF INTCON,INTF
 
     CALL PWM_OFF
@@ -201,7 +200,6 @@ ISR_EMERGENCIA
     BSF FLAGS,1      
 
     GOTO RECUPERAR_CONTEXTO
-
 
 ESPERA_ADC
     BSF ADCON0,1 ;GO/DONE
@@ -224,7 +222,7 @@ ESPERA_ADC
     MOVLW .5
     MOVWF UMBRAL_CM
 
-;Conversion a 7 segm
+;Conversion del umbral a cm
 DIV13
     MOVLW .13
     SUBWF TEMP,F
@@ -257,7 +255,6 @@ BCD_FIN
 
     RETURN
 
-
 MEDIR_HCSR04
     ;Esperar aprox 9us, pulso trigger
     MOVLW .3
@@ -269,7 +266,6 @@ DELAY_10US
     BTFSS STATUS,Z
     GOTO DELAY_10US
     BCF PORTC,0           ; fin del pulso TRIG
-
 
     MOVLW   .170       
     MOVWF   CONT_DELAY
@@ -283,9 +279,6 @@ ESPERAR_ECHO
     CLRF   DIST_CM
     RETURN
 
-    ; Cuando ECHO = 1:
-    ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
-    ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
 ECHO_HIGH
     CLRF TMR1H
     CLRF TMR1L
@@ -303,7 +296,7 @@ ECHO_TIMEOUT
     RETURN
 
 ECHO_LOW
-
+    ;convierte el tiempo del ECHO en distancia
     BCF T1CON, TMR1ON
     MOVF TMR1H,0
     MOVWF TMR1_H
@@ -322,7 +315,7 @@ ECHO_LOW
     RLF TMR1_L,1
     RLF TMR1_H,1
 
-    ;sumamos los originales para hacer *9
+    ;sumamos los valores originales para hacer *9
     MOVF TMR1L,0
     ADDWF TMR1_L
     BTFSC STATUS,C
@@ -330,14 +323,13 @@ ECHO_LOW
     MOVF TMR1H,0
     ADDWF TMR1_H
 
-    ;dividimos por 512, moviendo solo el registro alto un bit a la derecha, tenemos una tolerancia de +-1cm
+    ;dividimos por 512
     BCF STATUS,C
     RRF TMR1_H,1
     MOVF TMR1_H,0
     MOVWF DIST_CM
     BSF T1CON, TMR1ON
     RETURN
-
 
 RUTINA_DISPLAY
     BCF PORTE,0
@@ -400,7 +392,6 @@ PWM_ON ;(motor 100% duty)
 PWM_OFF ;(motor a 0% duty)
     CLRF CCPR1L
     RETURN
-;-------------------------------
 
 ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     MOVLW 'D'
