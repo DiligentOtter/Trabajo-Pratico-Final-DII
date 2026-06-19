@@ -35,46 +35,107 @@ El sistema no incluye:
 <img width="674" height="524" alt="5017097186071743561" src="https://github.com/user-attachments/assets/fa9fe912-05cc-4f03-8d32-a27f671b9c82" />
 
 ### Arquitectura de software
-```mermaid
 flowchart TD
-    INICIO([INICIO]) --> INIT[Configurar puertos\nADC · UART · PWM\nTimer0 · Timer1 · INT0]
-    INIT --> SAFE[Motor OFF\nLED rojo ON\nDisplays en 00]
-    SAFE --> GIE[Habilitar interrupciones\nGIE = 1]
-    GIE --> LOOP([LOOP PRINCIPAL\néspera])
-    LOOP --> LOOP
 
-    %% ─── ISR ───
-    LOOP -.->|interrupción| ISR{ISR\nDespachador}
+    A([Inicio])
 
-    ISR -->|INTF = 1\nEmergencia| IEMG[Motor OFF\nLED rojo ON\nFLAG_EMERGENCY = 1]
-    IEMG --> BCF_INTF[Limpiar INTF]
-    BCF_INTF --> RET1([RETFIE])
+    A --> B[Configurar Timer1]
+    B --> C[Configurar ADC]
+    C --> D[Configurar UART]
+    D --> E[Configurar PWM]
+    E --> F[Configurar Puertos]
+    F --> G[Inicializar Variables]
+    G --> H[Habilitar Interrupciones]
 
-    ISR -->|T0IF = 1\ncada ~10 ms| RELOAD[Recargar Timer0\nLimpiar T0IF]
-    RELOAD --> DISP[RUTINA_DISPLAY\nalternar dígito activo]
-    DISP --> INC[CICLO_CNT++]
-    INC --> CNT{CICLO_CNT\n== 10?}
+    H --> I([Loop Infinito])
 
-    CNT -->|NO| RX{¿RCIF?}
-    RX -->|SÍ| UART_RX[Leer RCREG\nCMD R → limpiar emergencia\nCMD P → parar motor]
-    RX -->|NO| RET2([RETFIE])
-    UART_RX --> RET2
+    I --> J{Interrupción}
 
-    CNT -->|SÍ| RST[CICLO_CNT = 0]
-    RST --> ADC[Leer ADC AN0\nUMBRAL = 5 + ADC/13\nConvertir a BCD]
-    ADC --> TRIG[Pulso TRIG 10 µs\nHC-SR04]
-    TRIG --> ECHO{¿ECHO sube\nantes de timeout?}
-    ECHO -->|NO\ntimeout| ZERO[DIST_CM = 0\nfail-safe]
-    ECHO -->|SÍ| TMR1[Timer1 mide\nancho de ECHO]
-    TMR1 --> CALC[DIST = ticks × 9 / 512]
-    ZERO --> CMP
-    CALC --> CMP{DIST_CM\n< UMBRAL_CM\no FLAG_EMERGENCY?}
-    CMP -->|SÍ| MOFF[Motor OFF\nCCPR1L = 0x00\nLED rojo ON]
-    CMP -->|NO| MON[Motor ON\nCCPR1L = 0xFF\nLED verde ON]
-    MOFF --> TX[Enviar trama UART\nD:xx U:xx M:OFF/ON]
-    MON --> TX
-    TX --> RET3([RETFIE])
-```
+    J -->|INTF| K[PARO_EMERGENCIA]
+    K --> L[APAGAR_MOTOR]
+    L --> M[Limpiar INTF]
+    M --> N[RETFIE]
+    N --> I
+
+    J -->|T0IF| O[Recargar Timer0]
+    O --> P[RUTINA_DISPLAY]
+    P --> Q[RUTINA_CICLO]
+
+    Q --> R[CICLO_CNT++]
+
+    R --> S{CICLO_CNT = 10?}
+
+    S -->|No| T[SOLO_RX]
+
+    T --> U{Dato UART?}
+
+    U -->|Si| V[ISR_UART_RX]
+    U -->|No| W[CHEQUEAR_BOTONES]
+
+    V --> W
+
+    S -->|Si| X[Reset CICLO_CNT]
+
+    X --> Y[LEER_ADC]
+
+    Y --> Z[Iniciar Conversión ADC]
+    Z --> A1[Leer ADRESH]
+    A1 --> A2[Calcular UMBRAL_CM]
+    A2 --> A3[Conversión BCD]
+
+    A3 --> B1[MEDIR_SENSOR]
+
+    B1 --> B2[Generar TRIG]
+    B2 --> B3[Esperar ECHO]
+
+    B3 --> B4{Timeout?}
+
+    B4 -->|Si| B5[DIST_CM = 0]
+
+    B4 -->|No| B6[Iniciar Timer1]
+
+    B6 --> B7[Esperar ECHO Bajo]
+
+    B7 --> B8{Timeout?}
+
+    B8 -->|Si| B5
+
+    B8 -->|No| B9[Leer Timer1]
+
+    B9 --> C1[Convertir Tiempo a Distancia]
+
+    C1 --> C2[DIST_CM]
+
+    B5 --> D1[CHEQUEAR_DISTANCIA]
+    C2 --> D1
+
+    D1 --> D2{DIST > UMBRAL?}
+
+    D2 -->|No| D3[APAGAR_MOTOR]
+
+    D2 -->|Si| D4{FLAGS.0 = 1?}
+
+    D4 -->|No| D5[Motor Apagado]
+
+    D4 -->|Si| D6[ENCENDER_MOTOR]
+
+    D3 --> E1[ENVIAR_TRAMA]
+    D5 --> E1
+    D6 --> E1
+
+    E1 --> W
+
+    W --> F1{RB0 Presionado?}
+
+    F1 -->|Si| L
+
+    F1 -->|No| F2{RB1 Presionado?}
+
+    F2 -->|Si| F3[FLAGS.0 = 1]
+
+    F2 -->|No| N
+
+    F3 --> N
 
 ---
 ## 3. Especificaciones eléctricas, alimentación y entorno
@@ -155,71 +216,7 @@ flowchart TD
 | RE1 | OUT | Selector dígito unidades |
 
 ---
-## Diagrama de conexión
 
-flowchart TD
-
-A[Inicio] --> B[Configurar ADC UART PWM Timer1 Timer0 Puertos]
-
-B --> C[Loop Infinito]
-
-C --> D{Interrupcion}
-
-D -->|RB0| E[Paro Emergencia]
-E --> F[Apagar Motor]
-F --> G[Limpiar INTF]
-G --> C
-
-D -->|Timer0| H[Actualizar Display]
-
-H --> I[RUTINA_CICLO]
-
-I --> J[CICLO_CNT + 1]
-
-J --> K{10 ciclos?}
-
-K -->|No| L[CHEQUEAR_BOTONES]
-L --> C
-
-K -->|Si| M[Leer ADC]
-
-M --> N[Calcular UMBRAL_CM]
-
-N --> O[Medir HC-SR04]
-
-O --> P[Obtener DIST_CM]
-
-P --> Q[CHEQUEAR_DISTANCIA]
-
-Q --> R{DIST > UMBRAL?}
-
-R -->|No| S[Apagar Motor]
-
-R -->|Si| T{FLAG HABILITACION?}
-
-T -->|No| U[Motor Apagado]
-
-T -->|Si| V[Encender Motor]
-
-S --> W[Enviar Trama UART]
-U --> W
-V --> W
-
-W --> X[CHEQUEAR_BOTONES]
-
-X --> Y{RB0 presionado?}
-
-Y -->|Si| F
-
-Y -->|No| Z{RB1 presionado?}
-
-Z -->|Si| AA[FLAGS.0 = 1]
-
-Z -->|No| C
-
-AA --> C
-
----
 ## Flujo de medición HC-SR04
 
 ```mermaid
