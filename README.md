@@ -32,6 +32,7 @@ El sistema no incluye:
 - Analisis de datos de telemetria y algoritmos de actuacion.
 - Posibilidad de controlar la velocidad del motor.
 
+
 ---
 
 # Lista de componentes necesitados
