@@ -30,9 +30,9 @@ El sistema no incluye:
 ## 2. Arquitectura del sistema: Hardware y Software
 
 ### Hardware & Interconexión
-- COMPLETAR
-- COMPLETAR
-- COMPLETAR
+<img width="861" height="455" alt="5017097186071743560" src="https://github.com/user-attachments/assets/b9addb9e-5b0b-4901-a016-5c18efe7b0b8" />
+
+<img width="674" height="524" alt="5017097186071743561" src="https://github.com/user-attachments/assets/fa9fe912-05cc-4f03-8d32-a27f671b9c82" />
 
 ### Arquitectura de software
 ```mermaid
@@ -108,6 +108,10 @@ flowchart TD
 
 ---
 ## 5. Ensayos, pruebas y resultados 
+### Testeo del funcionamiento del sensor 
+<img width="1600" height="1200" alt="5017097186071743558" src="https://github.com/user-attachments/assets/5a077eb7-b291-4af7-9305-3c1e3902c2a7" />
+<img width="1600" height="1200" alt="5017097186071743557" src="https://github.com/user-attachments/assets/5e81646b-ee7d-4486-9b66-54998fd31483" />
+<img width="1600" height="1200" alt="5017097186071743556" src="https://github.com/user-attachments/assets/b8f6ea88-ddcd-4c88-9a74-9361ec7a4712" />
 
 ---
 ## 6. Estructura del repositorio
