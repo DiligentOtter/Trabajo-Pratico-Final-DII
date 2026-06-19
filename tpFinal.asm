@@ -1,12 +1,10 @@
-   LIST p=16F887
+ LIST p=16F887
     #INCLUDE "P16F887.inc"
     RADIX HEX
 
     __CONFIG _CONFIG1, _FOSC_HS & _WDTE_OFF & _PWRTE_ON & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _IESO_OFF & _FCMEN_OFF & _LVP_OFF
     __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
 
-
-; === Variables (CONTRATO + privadas) ===
     CBLOCK 0x20
         DIST_CM         ; 0x20
         UMBRAL_CM       ; 0x21
@@ -20,8 +18,8 @@
         TMR1_H          ; 0x29
         TMR1_L          ; 0x2A
         CONT_DELAY      ; 0x2B
-        TX_DEC          ; 0x2C  ? decenas ASCII (HU-05)
-        TX_UNI          ; 0x2D  ? unidades ASCII (HU-05)
+        TX_DEC          ; 0x2C  
+        TX_UNI          ; 0x2D  
     ENDC
     CBLOCK 0x7D
         W_TEMP
@@ -29,29 +27,28 @@
     ENDC
 
     ORG 0X00
-    GOTO MAIN
+    GOTO INICIO
     ORG 0X04
     GOTO ISR
 
     ORG 0X05
-BCD_7SEG
+    
+TABLA
     ADDWF PCL,F
-    RETLW  b'00111111'    ; 0
-    RETLW  b'00000110'    ; 1
-    RETLW  b'01011011'    ; 2
-    RETLW  b'01001111'    ; 3
-    RETLW  b'01100110'    ; 4
-    RETLW  b'01101101'    ; 5
-    RETLW  b'01111101'    ; 6
-    RETLW  b'00000111'    ; 7
-    RETLW  b'01111111'    ; 8
-    RETLW  b'01101111'    ; 9
+    RETLW  b'00111111'    ;0
+    RETLW  b'00000110'    ;1
+    RETLW  b'01011011'    ;2
+    RETLW  b'01001111'    ;3
+    RETLW  b'01100110'    ;4
+    RETLW  b'01101101'    ;5
+    RETLW  b'01111101'    ;6
+    RETLW  b'00000111'    ;7
+    RETLW  b'01111111'    ;8
+    RETLW  b'01101111'    ;9
 
-; === MAIN ===
-MAIN
-    ; <<< puertos y perifericos>>>
+INICIO
 
-    ;------------BK0---------------
+    ;BANCO 0
     BCF STATUS,RP0
     BCF STATUS,RP1
 
@@ -60,19 +57,19 @@ MAIN
     MOVWF T1CON
 
     ;ADC
-    MOVLW 0x01        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
+    MOVLW 0x01        
     MOVWF ADCON0
 
     ;TX
     MOVLW 0x90
     MOVWF RCSTA
 
-    ;-------------BK1-------------
+    ;BANCO 1
     BCF STATUS,RP1
     BSF STATUS,RP0
 
     ;ADC
-    MOVLW 0x80        ; ADFM=1: justificado a derecha, Vref=VDD
+    MOVLW 0x00        ;ADFM=0:justificado a la izq
     MOVWF ADCON1
 
     ;TX/RX
@@ -83,35 +80,28 @@ MAIN
     MOVWF   TXSTA
 
     ;T0 CONFIG
-    MOVLW   0x05        ; prescaler 1:64 for Timer0
+    MOVLW   0x05        ;prescaler 1:64 for Timer0
     MOVWF   OPTION_REG
 
-    ; I/O PORTS
-    ;PORT A
-    BSF TRISA,0 ;POTENCIOMETRO
+    BSF TRISA,0     ;potenciometro
     BCF TRISA,1
     BCF TRISA,2
 
-    ;PORTB | INTERRUPCION
     BSF TRISB,0
     BSF WPUB,0
 
-    ;PORTC
-    BCF TRISC,0 ;TRIGGER SENSOR
-    BSF TRISC,1 ;ECHO SENSOR
+
+    BCF TRISC,0 ;trig sensor
+    BSF TRISC,1 ;echo sensor
     BCF TRISC,2
     BCF TRISC,6 ;TX
     BSF TRISC,7 ;RX
 
-    ;PORTD | 7SEG
     CLRF TRISD
 
-    ;PORTE | 7SEG SELCT
     CLRF TRISE
 
-
-    ;--------------BK3--------------------
-    ;CONFIGURACIONES BK 3, ANALOGIC REGS
+    ;BANCO 3
     BSF STATUS,RP0
     BSF STATUS,RP1
 
@@ -120,17 +110,11 @@ MAIN
     BCF ANSEL,2 ;LED ROJO
     CLRF ANSELH
 
-
-
-    ;INCIALIZACION BK0
     BCF STATUS,RP0
     BCF STATUS,RP1
 
-    ;INTERRUPCIONES
     MOVLW b'11110000'
     MOVWF INTCON
-
-
 
     CLRF DIST_CM
     CLRF UMBRAL_CM
@@ -157,11 +141,11 @@ LOOP
     GOTO LOOP
 
 ISR
-    MOVWF W_TEMP ;SAVE CONTEXT
+    MOVWF W_TEMP 
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
 
-    BCF     STATUS, RP0 ;BK0
+    BCF     STATUS, RP0 ;BANCO 0
     BCF     STATUS, RP1
 
     BTFSC INTCON,INTF
@@ -170,15 +154,14 @@ ISR
     BTFSS INTCON,T0IF
     GOTO RECUPERAR_CONTEXTO
 
-    MOVLW .100 ;REFRESH T0
+    MOVLW .100 
     MOVWF TMR0
     BCF INTCON,T0IF
 
     GOTO CICLO
 
-
 CICLO
-    ;rutina de funcionamiento normal
+
     CALL RUTINA_DISPLAY
 
     INCF CICLO_CNT,F
@@ -188,7 +171,7 @@ CICLO
     GOTO REVISA_RX
     CLRF CICLO_CNT
 
-    ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
+    ;cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR 
     CALL ESPERA_ADC
     CALL MEDIR_HCSR04
     CALL COMPARAR_Y_ACTUAR
@@ -207,8 +190,6 @@ RECUPERAR_CONTEXTO
     SWAPF W_TEMP,W
     RETFIE
 
-; ===================================== Subrutinas (pegar desde HU0X-*.asm) ===================================
-
 ISR_EMERGENCIA
 
     BCF INTCON,INTF
@@ -217,25 +198,24 @@ ISR_EMERGENCIA
     BCF PORTA,1      ; verde OFF
     BSF PORTA,2      ; rojo ON
 
-    BSF FLAGS,1       ; FLAG_EMERGENCY = 1
+    BSF FLAGS,1      
 
     GOTO RECUPERAR_CONTEXTO
 
-;-------------------------------------------------------
 
 ESPERA_ADC
     BSF ADCON0,1 ;GO/DONE
     BTFSC ADCON0,1
     GOTO ESPERA_ADC
 
-    ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
-    BCF STATUS,RP1 ;bk1
+    ;lectura del ADC
+    BCF STATUS,RP1 ;BANCO 1
     BSF STATUS,RP0
   
     MOVF ADRESL,W
     MOVWF ADC_RES
 
-    BCF STATUS,RP1 ;bk0
+    BCF STATUS,RP1 ;BANCO 0
     BCF STATUS,RP0
 
     ;UMBRAL_CM = 5 + (ADC_RES/13)
@@ -244,6 +224,7 @@ ESPERA_ADC
     MOVLW .5
     MOVWF UMBRAL_CM
 
+;Conversion a 7 segm
 DIV13
     MOVLW .13
     SUBWF TEMP,F
@@ -255,8 +236,6 @@ DIV13
     GOTO DIV13
 
 FIN_DIV13
-
-    ;Conversion a BCD
     CLRF UMBRAL_DEC
 
     MOVF UMBRAL_CM,W
@@ -278,10 +257,9 @@ BCD_FIN
 
     RETURN
 
-;------------------------------
 
 MEDIR_HCSR04
-    ; Esperar aprox 9us, pulso trigger
+    ;Esperar aprox 9us, pulso trigger
     MOVLW .3
     MOVWF CONT_DELAY
     BSF PORTC,0
@@ -293,9 +271,7 @@ DELAY_10US
     BCF PORTC,0           ; fin del pulso TRIG
 
 
-    ; Polling de RC1, esperando que ECHO pase a 1
-
-    MOVLW   .170        ; ~1ms timeout
+    MOVLW   .170       
     MOVWF   CONT_DELAY
 ESPERAR_ECHO
     BTFSC   PORTC,RC1
@@ -306,8 +282,6 @@ ESPERAR_ECHO
     ; Timeout
     CLRF   DIST_CM
     RETURN
-
-
 
     ; Cuando ECHO = 1:
     ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
@@ -328,11 +302,6 @@ ECHO_TIMEOUT
     CLRF DIST_CM
     RETURN
 
-
-
-
-    ; Cuando ECHO baja (o timeout):
-    ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
 ECHO_LOW
 
     BCF T1CON, TMR1ON
@@ -341,7 +310,6 @@ ECHO_LOW
     MOVF TMR1L,0
     MOVWF TMR1_L
 
-    ; CORREMOS 3 VECES LOS BITS DE LOS REGISTROS
     BCF STATUS,C ; TMR1 * 2
     RLF TMR1_L,1
     RLF TMR1_H,1
@@ -354,7 +322,7 @@ ECHO_LOW
     RLF TMR1_L,1
     RLF TMR1_H,1
 
-    ; SUMAMOS LOS ORIGNALES PARA HACER * 9
+    ;sumamos los originales para hacer *9
     MOVF TMR1L,0
     ADDWF TMR1_L
     BTFSC STATUS,C
@@ -371,8 +339,6 @@ ECHO_LOW
     RETURN
 
 
-;----------------------------------------------
-
 RUTINA_DISPLAY
     BCF PORTE,0
     BCF PORTE,1
@@ -383,7 +349,7 @@ RUTINA_DISPLAY
 
 SHOW_UNIDADES
     MOVF UMBRAL_UNI, W
-    CALL BCD_7SEG
+    CALL TABLA
     MOVWF PORTD
     BSF PORTE,1
 
@@ -392,18 +358,15 @@ SHOW_UNIDADES
 
 SHOW_DECENAS
     MOVF UMBRAL_DEC,W
-    CALL BCD_7SEG
+    CALL TABLA
     MOVWF PORTD
     BSF PORTE,0
 
     BSF DISP_SEL,0
     RETURN
 
-;------------------------
-
-COMPARAR_Y_ACTUAR   ; HU-02
-    ;Comparar DIST_CM con UMBRAL_CM
-
+COMPARAR_Y_ACTUAR   
+    ;comparar DIST_CM con UMBRAL_CM
     MOVF UMBRAL_CM,W
     SUBWF DIST_CM,W
 
@@ -542,7 +505,6 @@ BIN_DEC_DONE
     MOVWF   TX_DEC
     RETURN
 
-;---------ISR DE RECEPCION---------------
 
 ISR_UART_RX
     BTFSS   RCSTA, OERR ;ERROR DE RECEPCION?
@@ -558,30 +520,27 @@ CHECK_CMD
     MOVF    RCREG, W
     MOVWF   TEMP
 
-    ; �Es 'R' (0x52)?  reanudar
+    ; ?Es 'R' (0x52)?  reanudar
     MOVLW   'R'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_REANUDAR
 
-    ; �Es 'P' (0x50)?
+    ; ?Es 'P' (0x50)?
     MOVLW   'P'
     SUBWF   TEMP, W
     BTFSC   STATUS, Z
     GOTO    CMD_PARAR
 
-
     RETURN
 
-
 CMD_REANUDAR
-    BCF     FLAGS, 1            ; FLAG_EMERGENCY = 0
+    BCF     FLAGS, 1           
 
     BSF     PORTA, 1            ; LED verde ON
     BCF     PORTA, 2            ; LED rojo OFF
     CALL PWM_ON
     RETURN
-
 
 CMD_PARAR
     ; Cortar motor
@@ -590,25 +549,22 @@ CMD_PARAR
     BCF     PORTA, 1            ; LED verde OFF
     BSF     PORTA, 2            ; LED rojo ON
 
-    BSF     FLAGS, 1            ; FLAG_EMERGENCY = 1
+    BSF     FLAGS, 1           
 
     RETURN
-
-;-------------------------------
-
 
 PWM_INIT
 
     MOVLW b'00000100'
     MOVWF T2CON
 
-    BCF STATUS,RP1 ;BK1
+    BCF STATUS,RP1 ;BANCO 1
     BSF STATUS,RP0
 
     MOVLW b'11111111'
     MOVWF PR2
 
-    BCF STATUS,RP1 ;BK0
+    BCF STATUS,RP1 ;BANCO 0
     BCF STATUS,RP0
 
 
