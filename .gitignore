@@ -1,41 +1,63 @@
-# Carpetas de compilación y salida (No se versionan)
+# MPLAB X / XC Compiler output
 build/
 dist/
 debug/
 disassembly/
+*.hex
+*.elf
+*.map
+*.cof
+*.lst
+*.sym
+*.cod
+*.p1
+*.o
+*.d
+*.pre
 
-# Archivos generados por el usuario/sistema local dentro de nbproject
+# MPLAB X project local config (per-user)
 nbproject/private/
+nbproject/Makefile-local-*.mk
+nbproject/configurations.xml
 
-# Archivos de respaldo que genera MPLAB al guardar
+# MPLAB X backups
 *~
 *.bak
 .atl/
 openspec/
-nbproject/configurations.xml
-nbproject/Makefile-default.mk
-nbproject/Makefile-genesis.properties
-node_modules
 
-# Output
-.output
-.vercel
-.netlify
-.wrangler
-/.svelte-kit
-/build
-/.vscode
-/
+# Node.js / SvelteKit (pic-telemetry)
+pic-telemetry/node_modules/
+pic-telemetry/.svelte-kit/
+pic-telemetry/build/
+pic-telemetry/.vite/
+pic-telemetry/.vercel/
+pic-telemetry/.netlify/
+pic-telemetry/.wrangler/
+pic-telemetry/dist/
+pic-telemetry/coverage/
+pic-telemetry/*.log
+pic-telemetry/npm-debug.log*
+pic-telemetry/pnpm-debug.log*
+pic-telemetry/yarn-debug.log*
+pic-telemetry/yarn-error.log*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # OS
 .DS_Store
 Thumbs.db
 
-# Env
+# Environment
 .env
 .env.*
 !.env.example
 !.env.test
 
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
+# Test / Coverage
+coverage/
+.nyc_output/

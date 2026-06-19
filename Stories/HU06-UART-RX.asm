@@ -95,7 +95,6 @@ ISR_DISPATCHER
 
     ; 2. Chequear RCIF (UART RX ? este archivo)
 CHECK_RCIF
-    BANKSEL PIR1
     BTFSC   PIR1, RCIF
     GOTO    ISR_UART_RX
 
@@ -111,14 +110,9 @@ CHECK_RCIF
 
 ISR_UART_RX
     ; Leer byte recibido (limpia RCIF automáticamente)
-    BCF     STATUS, RP1
-    BCF     STATUS, RP0         ; Bank 0
     MOVF    RCREG, W
     MOVWF   TEMP                ; guardar byte para comparar
 
- 
-    BCF     STATUS, RP1
-    BCF     STATUS, RP0         ; Banco 0
     BTFSS   RCSTA, OERR
     GOTO    CHECK_CMD           ; sin error ? procesar comando
 
