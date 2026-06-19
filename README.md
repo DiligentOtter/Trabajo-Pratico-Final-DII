@@ -39,40 +39,56 @@ El sistema no incluye:
 ### Arquitectura de software
 ```mermaid
 flowchart TD
-    INICIO([INICIO]) --> INIT[Configurar puertos\nADC · UART · PWM\nTimer0 · Timer1 · INT0]
-    INIT --> SAFE[Motor OFF\nLED rojo ON\nDisplays en 00]
-    SAFE --> GIE[Habilitar interrupciones\nGIE = 1]
-    GIE --> LOOP([LOOP PRINCIPAL\néspera])
-    LOOP --> LOOP
+    A([Reset PIC16F887]) --> B
 
-    %% ─── ISR ───
-    LOOP -.->|interrupción| ISR{ISR\nDespachador}
+    B["Inicialización
+    Timer1 · ADC · UART · PWM · Puertos · IRQ"]
+    B --> C
 
-    ISR -->|INTF = 1\nEmergencia| IEMG[Motor OFF\nLED rojo ON\nFLAG_EMERGENCY = 1]
-    IEMG --> BCF_INTF[Limpiar INTF]
-    BCF_INTF --> RET1([RETFIE])
+    C["Loop infinito — espera IRQ"]
+    C --> D
 
-    ISR -->|T0IF = 1\ncada ~10 ms| RELOAD[Recargar Timer0\nLimpiar T0IF]
-    RELOAD --> DISP[RUTINA_DISPLAY\nalternar dígito activo]
-    DISP --> INC[CICLO_CNT++]
-    INC --> CNT{CICLO_CNT\n== 10?}
+    D{"ISR
+    ¿Qué interrupción?"}
 
-    CNT -->|NO| RET2([RETFIE])
+    D -->|INTF| E["🛑 Paro de emergencia
+    Apagar motor"]
+    E --> R([RETFIE])
 
-    CNT -->|SÍ| RST[CICLO_CNT = 0]
-    RST --> ADC[Leer ADC AN0\nUMBRAL = 5 + ADC/13\nConvertir a BCD]
-    ADC --> TRIG[Pulso TRIG 10 µs\nHC-SR04]
-    TRIG --> ECHO{¿ECHO sube\nantes de timeout?}
-    ECHO -->|NO\ntimeout| ZERO[DIST_CM = 0\nfail-safe]
-    ECHO -->|SÍ| TMR1[Timer1 mide\nancho de ECHO]
-    TMR1 --> CALC[DIST = ticks × 9 / 512]
-    ZERO --> CMP
-    CALC --> CMP{DIST_CM\n< UMBRAL_CM\no FLAG_EMERGENCY?}
-    CMP -->|SÍ| MOFF[Motor OFF\nCCPR1L = 0x00\nLED rojo ON]
-    CMP -->|NO| MON[Motor ON\nCCPR1L = 0xFF\nLED verde ON]
-    MOFF --> TX[Enviar trama UART\nD:xx U:xx]
-    MON --> TX
-    TX --> RET3([RETFIE])
+    D -->|T0IF| F["Recarga Timer0
+    Display + CICLO_CNT++"]
+    F --> G{"¿CICLO_CNT = 10?"}
+
+    G -->|No| H{"¿RCIF = 1?"}
+    H -->|Sí| I["ISR UART RX
+    R → FLAGS.0=1 · P → stop motor"]
+    H -->|No| R
+    I --> R
+
+    G -->|Sí| J["Leer ADC
+    Iniciar conv. · leer ADRESH · calc. umbral · BCD"]
+    J --> K
+
+    K["Medir sensor ultrasónico
+    Pulso TRIG → espera ECHO alto/bajo
+    Timeout → DIST=0 · Timer1 → DIST_CM"]
+    K --> L
+
+    L{"¿DIST > UMBRAL?"}
+    L -->|No| M["Apagar motor"]
+    L -->|Sí| N{"¿FLAGS.0 = 1?"}
+
+    N -->|No| R
+    N -->|Sí| O["Encender motor"]
+
+    M --> P
+    O --> P
+
+    P["Enviar trama UART
+    D:XXcm · U:XXcm · CR/LF"]
+    P --> R
+
+    R --> C
 ```
 
 ---
