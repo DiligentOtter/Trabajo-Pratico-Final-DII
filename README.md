@@ -25,6 +25,8 @@ El sistema no incluye:
 - Incluir un sistema de alarmas sonoras previas a la detención del motor para mejorar la seguridad del operario.
 - Implementar rampas de aceleración y desaceleración del motor para evitar arranques bruscos.
 - Mejorar UART enviando mensajes estructurados.
+- Analisis de datos de telemetria y algoritmos de actuacion
+
 
 ---
 ## 2. Arquitectura del sistema: Hardware y Software
@@ -71,7 +73,7 @@ flowchart TD
     CALC --> CMP{DIST_CM\n< UMBRAL_CM\no FLAG_EMERGENCY?}
     CMP -->|SÍ| MOFF[Motor OFF\nCCPR1L = 0x00\nLED rojo ON]
     CMP -->|NO| MON[Motor ON\nCCPR1L = 0xFF\nLED verde ON]
-    MOFF --> TX[Enviar trama UART\nD:xx U:xx M:OFF/ON]
+    MOFF --> TX[Enviar trama UART\nD:xx U:xx]
     MON --> TX
     TX --> RET3([RETFIE])
 ```
@@ -104,6 +106,7 @@ flowchart TD
 - Etapa 2 (adquisición/comunicación): Se implementó la lectura del ADC para obtener el valor del potenciómetro que se usa como umbral de seguridad.También se agregó la comunicación UART para poder enviar datos a la PC y facilitar la depuración del sistema. Además, en esta etapa también se comenzaron a revisar y diseñar las rutinas de servicio de interrupción necesarias para el funcionamiento del sistema.
 - Etapa 3 (integración lógica): Se desarrolló la lógica principal del sistema, comparando la distancia medida por el HC-SR04 con el umbral configurado. Además, se implementó el control del motor mediante PWM y el uso de la interrupción externa para el botón de emergencia.
 - Etapa 4 (sistema completo):
+<img width="1920" height="2560" alt="5017097186071743562" src="https://github.com/user-attachments/assets/07cf246f-33d9-4eb2-86a6-eab31dd1906d" />
 
 
 ---
@@ -112,9 +115,11 @@ flowchart TD
 <img width="1600" height="1200" alt="5017097186071743558" src="https://github.com/user-attachments/assets/5a077eb7-b291-4af7-9305-3c1e3902c2a7" />
 <img width="1600" height="1200" alt="5017097186071743557" src="https://github.com/user-attachments/assets/5e81646b-ee7d-4486-9b66-54998fd31483" />
 <img width="1600" height="1200" alt="5017097186071743556" src="https://github.com/user-attachments/assets/b8f6ea88-ddcd-4c88-9a74-9361ec7a4712" />
+### Sistema completo
+<img width="1920" height="2560" alt="5017097186071743563" src="https://github.com/user-attachments/assets/eec8f813-8a7f-40d9-a47e-52c4e14c5de2" />
+
 
 ---
-## 6. Estructura del repositorio
 
 | Componente | Cantidad | Notas |
 |------------|----------|-------|
