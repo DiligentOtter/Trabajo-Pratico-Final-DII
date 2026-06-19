@@ -39,56 +39,69 @@ El sistema no incluye:
 ### Arquitectura de software
 ```mermaid
 flowchart TD
-    A([Reset PIC16F887]) --> B
 
-    B["Inicialización
-    Timer1 · ADC · UART · PWM · Puertos · IRQ"]
-    B --> C
+    A([Inicio]) --> B[Configurar Timer1]
+    B --> C[Configurar ADC]
+    C --> D[Configurar UART]
+    D --> E[Configurar PWM]
+    E --> F[Configurar Puertos]
+    F --> G[Inicializar Variables]
+    G --> H[Habilitar Interrupciones]
 
-    C["Loop infinito — espera IRQ"]
-    C --> D
+    H --> I([Loop Infinito])
 
-    D{"ISR
-    ¿Qué interrupción?"}
+    I --> J{Interrupción}
 
-    D -->|INTF| E["🛑 Paro de emergencia
-    Apagar motor"]
-    E --> R([RETFIE])
+    J -->|INTF| K[Paro Emergencia]
+    K --> L[Apagar Motor]
+    L --> M[Limpiar INTF]
+    M --> N[RETFIE]
+    N --> I
 
-    D -->|T0IF| F["Recarga Timer0
-    Display + CICLO_CNT++"]
-    F --> G{"¿CICLO_CNT = 10?"}
+    J -->|T0IF| O[Recargar Timer0]
 
-    G -->|No| H{"¿RCIF = 1?"}
-    H -->|Sí| I["ISR UART RX
-    R → FLAGS.0=1 · P → stop motor"]
-    H -->|No| R
-    I --> R
+    O --> P[Actualizar Display]
+    P --> Q[CICLO_CNT++]
 
-    G -->|Sí| J["Leer ADC
-    Iniciar conv. · leer ADRESH · calc. umbral · BCD"]
-    J --> K
+    Q --> R{CICLO_CNT = 10}
 
-    K["Medir sensor ultrasónico
-    Pulso TRIG → espera ECHO alto/bajo
-    Timeout → DIST=0 · Timer1 → DIST_CM"]
-    K --> L
+    R -->|No| S[Chequear Botones]
+    S --> T{RB0?}
 
-    L{"¿DIST > UMBRAL?"}
-    L -->|No| M["Apagar motor"]
-    L -->|Sí| N{"¿FLAGS.0 = 1?"}
+    T -->|Si| L
+    T -->|No| U{RB1?}
 
-    N -->|No| R
-    N -->|Sí| O["Encender motor"]
+    U -->|Si| V[Habilitar Sistema]
+    U -->|No| N
 
-    M --> P
-    O --> P
+    V --> N
 
-    P["Enviar trama UART
-    D:XXcm · U:XXcm · CR/LF"]
-    P --> R
+    R -->|Si| W[Reset CICLO_CNT]
 
-    R --> C
+    W --> X[Leer ADC]
+    X --> Y[Calcular UMBRAL]
+
+    Y --> Z[Generar TRIG HC-SR04]
+
+    Z --> A1[Esperar ECHO]
+    A1 --> B1[Medir con Timer1]
+    B1 --> C1[Calcular DIST_CM]
+
+    C1 --> D1{DIST > UMBRAL}
+
+    D1 -->|No| E1[Apagar Motor]
+
+    D1 -->|Si| F1{Sistema Habilitado}
+
+    F1 -->|No| G1[Motor Apagado]
+
+    F1 -->|Si| H1[Encender Motor]
+
+    E1 --> I1[Enviar Trama UART]
+    G1 --> I1
+    H1 --> I1
+
+    I1 --> S
 ```
 
 ---
@@ -128,6 +141,7 @@ flowchart TD
 <img width="1600" height="1200" alt="5017097186071743558" src="https://github.com/user-attachments/assets/5a077eb7-b291-4af7-9305-3c1e3902c2a7" />
 <img width="1600" height="1200" alt="5017097186071743557" src="https://github.com/user-attachments/assets/5e81646b-ee7d-4486-9b66-54998fd31483" />
 <img width="1600" height="1200" alt="5017097186071743556" src="https://github.com/user-attachments/assets/b8f6ea88-ddcd-4c88-9a74-9361ec7a4712" />
+
 ### Sistema completo
 <img width="1920" height="2560" alt="5017097186071743563" src="https://github.com/user-attachments/assets/eec8f813-8a7f-40d9-a47e-52c4e14c5de2" />
 
