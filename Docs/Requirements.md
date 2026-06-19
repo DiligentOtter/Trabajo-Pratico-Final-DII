@@ -44,6 +44,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 | RS-F10 | El sistema arranca con el motor apagado (estado seguro por defecto). |
 | RS-F11 | El umbral de corte se muestra en dos displays de 7 segmentos multiplexados (decenas/unidades). |
 | RS-F12 | Los displays se refrescan desde la ISR del Timer0 mediante multiplexado por software. |
+| RS-F13 | Si el HC-SR04 no responde (timeout en ECO), se asume distancia = 0 cm y se corta el motor (fail-safe). |
 
 ### 3.2 No funcionales
 
@@ -70,9 +71,10 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 
 **Criterios de aceptación:**
 - Timer0 genera una interrupción cada ~10 ms; la medición ocurre cada 10 interrupciones.
-- En cada ciclo de 100 ms se envía un pulso TRIG de 10 µs al sensor.
+- En cada ciclo de 100 ms se envía un pulso TRIG de ≥10 µs al sensor (11 µs con 4 MHz y contador = 3).
 - Timer1 mide el ancho del pulso ECHO en µs por polling.
-- La distancia en cm se calcula como `ECHO_us / 58`.
+- La distancia en cm se calcula como `ECHO_us * 9 / 512` (aproximación a 1/58 con ~2% de error, conservadora por sobredimensión).
+- Si el sensor no responde (timeout), se asume distancia = 0 cm y se corta el motor (fail-safe).
 
 ---
 
@@ -88,14 +90,14 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 
 ---
 
-### HU-03 — Umbral ajustable por ADC (TESTING)
+### HU-03 — Umbral ajustable por ADC (COMPLETADA)
 **Como** operario,  
 **quiero** configurar a qué distancia se activa el corte,  
 **para** adaptarlo al tipo de trabajo.
 
 **Criterios de aceptación:**
 - AN0 se lee cada ciclo de 100 ms.
-- El valor del ADC (0–255) se mapea al rango 5–25 cm.
+- El valor del ADC (0–255) se mapea al rango 5–24 cm (`UMBRAL_CM = 5 + ADC_RES / 13`).
 - El umbral activo se usa en la comparación con la distancia medida.
 - El umbral actualizado se refleja en los displays en el mismo ciclo.
 
@@ -130,8 +132,8 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** probar el sistema sin intervención física.
 
 **Criterios de aceptación:**
-- `'R'` reanuda el motor si no hay obstrucción activa ni emergencia.
-- `'P'` para el motor y activa `FLAG_EMERGENCY`.
+- `'R'` limpia `FLAG_EMERGENCY` y reanuda el motor de inmediato. Si hay obstrucción activa, el próximo ciclo de 100 ms la detecta y corta nuevamente.
+- `'P'` para el motor, activa `FLAG_EMERGENCY`, LED verde OFF, LED rojo ON.
 - Cualquier otro carácter es ignorado.
 
 ---
@@ -154,7 +156,7 @@ Sistema embebido que detecta la proximidad de una mano a la hoja de sierra media
 **para** saber a qué distancia se activará el corte sin mirar la PC.
 
 **Criterios de aceptación:**
-- Displays muestran umbral en cm (00–25), decenas a la izquierda.
+- Displays muestran umbral en cm (00–24), decenas a la izquierda.
 - Se actualiza cada ciclo de 100 ms.
 - Sin parpadeo visible (refresco ≥ 25 Hz por dígito).
 
@@ -315,7 +317,7 @@ BCD_7SEG:
 
 | Registro | Valor | Descripción |
 |----------|-------|-------------|
-| ADCON0 | `0x01` | Canal AN0, ADC ON |
+| ADCON0 | `0x41` | Canal AN0, ADCS=01 (Tad=Fosc/8=2 µs), ADC ON |
 | ADCON1 | `0x80` | Justificado a derecha, Vref=VDD |
 | OPTION_REG | `0x05` | Timer0, prescaler 1:64 (~10 ms) |
 | T1CON | `0x01` | Timer1 ON, prescaler 1:1 (1 tick = 1 µs) |
@@ -326,7 +328,7 @@ BCD_7SEG:
 | TXSTA | `0x24` | UART TX, async, BRGH=1 |
 | RCSTA | `0x90` | UART RX, serial port ON |
 | SPBRG | `0x19` | 9600 bps a 4 MHz |
-| INTCON | `0xB0` | GIE=1, TMR0IE=1, INTE=1 |
+| INTCON | `0xF0` | GIE=1, PEIE=1, TMR0IE=1, INTE=1 |
 | TRISC | `0xB2` | RC0 salida (TRIG), RC1 entrada (ECHO), RC2 salida (CCP1), RC6 salida (TX), RC7 entrada (RX) |
 | TRISD | `0x00` | RD0–RD6 salidas (segmentos a–g) |
 | TRISE | `0x00` | RE0, RE1 salidas (selectores display) |

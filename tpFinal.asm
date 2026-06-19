@@ -1,196 +1,199 @@
-   LIST p=16F887
+LIST p=16F887
     #INCLUDE "P16F887.inc"
     RADIX HEX
 
     __CONFIG _CONFIG1, _FOSC_HS & _WDTE_OFF & _PWRTE_ON & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _IESO_OFF & _FCMEN_OFF & _LVP_OFF
     __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
 
+    DIST_CM     EQU 0x20
+    UMBRAL_CM   EQU 0x21
+    CICLO_CNT   EQU 0x22
+    FLAGS       EQU 0x23
+    TEMP        EQU 0x24
+    TMR1_H      EQU 0x25
+    TMR1_L      EQU 0x26
+    CONT_DELAY  EQU 0x27
+    TX_DEC      EQU 0x28
+    TX_UNI      EQU 0x29
+    ADC_RES     EQU 0x2A
+    CONT_HI     EQU 0x2B
+    UMBRAL_DEC  EQU 0x2C
+    UMBRAL_UNI  EQU 0x2D
+    DISP_SEL    EQU 0x2E
+    PROD_H      EQU 0x2F
+    PROD_L      EQU 0x30
+    MULT_CNT    EQU 0x31
+    QUOT        EQU 0x32
+    BCD_TEMP    EQU 0x33   
+    W_TEMP      EQU 0x70
+    STATUS_TEMP EQU 0x71
 
-; === Variables (CONTRATO + privadas) ===
-    CBLOCK 0x20
-        DIST_CM         ; 0x20
-        UMBRAL_CM       ; 0x21
-        UMBRAL_DEC      ; 0x22
-        UMBRAL_UNI      ; 0x23
-        DISP_SEL        ; 0x24
-        CICLO_CNT       ; 0x25
-        FLAGS           ; 0x26
-        TEMP            ; 0x27
-        ADC_RES         ; 0x28
-        TMR1_H          ; 0x29
-        TMR1_L          ; 0x2A
-        CONT_DELAY      ; 0x2B
-        TX_DEC          ; 0x2C  ? decenas ASCII (HU-05)
-        TX_UNI          ; 0x2D  ? unidades ASCII (HU-05)
-    ENDC
-    CBLOCK 0x7D
-        W_TEMP
-        STATUS_TEMP
-    ENDC
+    ORG 0x00
+    GOTO INICIO
 
-    ORG 0X00
-    GOTO MAIN
-    ORG 0X04
+    ORG 0x04
     GOTO ISR
 
-    ORG 0X05
-BCD_7SEG
+    ORG 0x05
+    
+TABLA
     ADDWF PCL,F
-    RETLW  b'00111111'    ; 0
-    RETLW  b'00000110'    ; 1
-    RETLW  b'01011011'    ; 2
-    RETLW  b'01001111'    ; 3
-    RETLW  b'01100110'    ; 4
-    RETLW  b'01101101'    ; 5
-    RETLW  b'01111101'    ; 6
-    RETLW  b'00000111'    ; 7
-    RETLW  b'01111111'    ; 8
-    RETLW  b'01101111'    ; 9
+    RETLW b'00111111'     ;0
+    RETLW b'00000110'     ;1
+    RETLW b'01011011'     ;2
+    RETLW b'01001111'     ;3
+    RETLW b'01100110'     ;4
+    RETLW b'01101101'     ;5
+    RETLW b'01111101'     ;6
+    RETLW b'00000111'     ;7
+    RETLW b'01111111'     ;8
+    RETLW b'01101111'     ;9
 
-; === MAIN ===
-MAIN
-    ; <<< puertos y perifericos>>>
-
-    ;------------BK0---------------
-    BCF STATUS,RP0
-    BCF STATUS,RP1
-
-    ;T1 CONFIG
-    MOVLW 0x01
+INICIO
+    BANKSEL T1CON
+    MOVLW b'00000001'
     MOVWF T1CON
 
-    ;ADC
-    MOVLW 0x01        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
+    BANKSEL ADCON0
+    MOVLW b'00000001'
     MOVWF ADCON0
 
-    ;-------------BK1-------------
-    BCF STATUS,RP1
-    BSF STATUS,RP0
-
-    ;ADC
-    MOVLW 0x80        ; ADFM=1: justificado a derecha, Vref=VDD
+    BANKSEL ADCON1
+    MOVLW b'00000000'    
     MOVWF ADCON1
 
-    ;TX/RX
-    MOVLW   0x19
-    MOVWF   SPBRG
+    BANKSEL RCSTA
+    MOVLW b'10010000'
+    MOVWF RCSTA
 
-    MOVLW   0x24
-    MOVWF   TXSTA
+    BANKSEL SPBRG
+    MOVLW .25
+    MOVWF SPBRG
+    BANKSEL TXSTA
+    MOVLW b'00100100'
+    MOVWF TXSTA
 
-    ;T0 CONFIG
-    MOVLW   0x05        ; prescaler 1:64 for Timer0
-    MOVWF   OPTION_REG
+    BANKSEL OPTION_REG
+    MOVLW b'00000101'
+    MOVWF OPTION_REG
 
-    ; I/O PORTS
-    ;PORT A
-    BSF TRISA,0 ;POTENCIOMETRO
-    BCF TRISA,1
-    BCF TRISA,2
+    BANKSEL TRISC
+    BCF TRISC,0
+    BSF TRISC,1
+    BCF TRISC,6
+    BSF TRISC,7
+    BCF TRISC,2        ;RC2/CCP1 salida PWM
 
-    ;PORTB | INTERRUPCION
-    BSF TRISB,0
+    BANKSEL TRISA
+    BSF TRISA,0        ;RA0 entrada potenciometro
+
+    BANKSEL TRISD
+    CLRF TRISD           ;RD0-RD7 salidas (segmentos display)
+    BANKSEL TRISE
+    CLRF TRISE           ;RE0-RE1 salidas (selectores display)
+
+    BANKSEL TRISB
+    BSF TRISB,0        ;RB0 entrada boton emergencia
+    BSF TRISB,1        ;RB1 entrada boton encendido
+    BCF TRISB,2        ;RB2 salida LED motor encendido
+    BCF TRISB,3        ;RB3 salida LED motor apagado
+    BANKSEL WPUB
     BSF WPUB,0
+    BSF WPUB,1
 
-    ;PORTC
-    BCF TRISC,0 ;TRIGGER SENSOR
-    BSF TRISC,1 ;ECHO SENSOR
-    BCF TRISC,2
-    BCF TRISC,6 ;TX
-    BSF TRISC,7 ;RX
+    BANKSEL PORTB
+    BCF PORTB,2
+    BSF PORTB,3
 
-    ;PORTD | 7SEG
-    CLRF TRISD
-
-    ;PORTE | 7SEG SELCT
-    CLRF TRISE
-
-
-    ;--------------BK3--------------------
-    ;CONFIGURACIONES BK 3, ANALOGIC REGS
-    BSF STATUS,RP0
-    BSF STATUS,RP1
-
-    BSF ANSEL,0 ;RA0/AN0
-    BCF ANSEL,1 ;LED VERDE
-    BCF ANSEL,2 ;LED ROJO
+    BANKSEL ANSEL
+    MOVLW b'00000001'     ;solo AN0 analogico
+    MOVWF ANSEL
+    BANKSEL ANSELH
     CLRF ANSELH
 
-
-
-    ;INCIALIZACION BK0
-    BCF STATUS,RP0
-    BCF STATUS,RP1
-
-    ;INTERRUPCIONES
-    MOVLW b'11110000'
-    MOVWF INTCON
-
-
-
-    CLRF DIST_CM
-    CLRF UMBRAL_CM
-    CLRF CICLO_CNT
-    CLRF FLAGS
-
-    CLRF PORTE
+    BANKSEL PORTD
     CLRF PORTD
+    BANKSEL PORTE
+    CLRF PORTE
 
-    BCF PORTA,1 ;LED VERDE
-    BSF PORTA,2 ;LED ROJO
+    ;configuracion PWM, arranca en 0% 
+    BANKSEL PR2
+    MOVLW .255
+    MOVWF PR2
+
+    BANKSEL CCPR1L
+    CLRF CCPR1L
+
+    BANKSEL CCP1CON
+    CLRF CCP1CON
+
+    BANKSEL PORTC
+    BCF PORTC,2
+
+    BANKSEL PIR1
+    BCF PIR1,TMR2IF
+
+    BANKSEL T2CON
+    MOVLW b'00000111'     ;TMR2 ON, prescaler 1:16
+    MOVWF T2CON
+
+WAIT_TMR2_OVF
+    BANKSEL PIR1
+    BTFSS PIR1, TMR2IF
+    GOTO WAIT_TMR2_OVF
+    BCF PIR1, TMR2IF
+
+    BANKSEL CCP1CON
+    MOVLW b'00001100'     
+    MOVWF CCP1CON
+
+    BANKSEL DIST_CM
+    CLRF DIST_CM
+    CLRF ADC_RES
+    MOVLW .10
+    MOVWF UMBRAL_CM
+    CLRF CICLO_CNT
+    CLRF FLAGS          
+    CLRF CONT_HI
+    CLRF DISP_SEL
+    MOVLW .1          
+    MOVWF UMBRAL_DEC
+    CLRF UMBRAL_UNI
 
     BCF PORTC,0
-    BCF FLAGS,1
-    BSF PORTB,0
 
-    CALL PWM_INIT
+    MOVLW b'11110000'     ;GIE,PEIE,T0IE,INTE habilitadas
+    MOVWF INTCON
 
     MOVLW .100
     MOVWF TMR0
 
 LOOP
-
     GOTO LOOP
 
 ISR
-    MOVWF W_TEMP ;SAVE CONTEXT
+    MOVWF W_TEMP
     SWAPF STATUS,W
     MOVWF STATUS_TEMP
 
-    BCF     STATUS, RP0 ;BK0
-    BCF     STATUS, RP1
+    BCF STATUS,RP0
+    BCF STATUS,RP1
 
-    BTFSC INTCON,INTF
-    GOTO ISR_EMERGENCIA
+    BTFSS INTCON,INTF
+    GOTO CHECK_T0IF
+    CALL PARO_EMERGENCIA
 
+CHECK_T0IF
     BTFSS INTCON,T0IF
     GOTO RECUPERAR_CONTEXTO
 
-    MOVLW .100 ;REFRESH T0
+    MOVLW .100
     MOVWF TMR0
-    BCF INTCON,T0IF
+    BCF INTCON, T0IF
 
-    GOTO CICLO
-
-
-CICLO
-    ;rutina de funcionamiento normal
     CALL RUTINA_DISPLAY
-
-    INCF CICLO_CNT,F
-    MOVLW .10
-    SUBWF CICLO_CNT,W
-    BTFSS STATUS,Z
-    NOP
-    CLRF CICLO_CNT
-
-    ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
-    CALL ESPERA_ADC
-    CALL MEDIR_HCSR04
-    CALL COMPARAR_Y_ACTUAR
-    CALL ENVIAR_TRAMA
-    GOTO RECUPERAR_CONTEXTO
-
+    CALL RUTINA_CICLO
+    CALL CHEQUEAR_BOTONES
 
 RECUPERAR_CONTEXTO
     SWAPF STATUS_TEMP,W
@@ -199,245 +202,320 @@ RECUPERAR_CONTEXTO
     SWAPF W_TEMP,W
     RETFIE
 
-; ===================================== Subrutinas (pegar desde HU0X-*.asm) ===================================
+APAGAR_MOTOR
+    BANKSEL CCP1CON
+    BCF CCP1CON,5
+    BCF CCP1CON,4
+    BANKSEL CCPR1L
+    CLRF CCPR1L
+    BANKSEL PORTB
+    BCF PORTB,2
+    BSF PORTB,3
+    BANKSEL FLAGS
+    BCF FLAGS,0
+    RETURN
+    
+ENCENDER_MOTOR
+    BANKSEL CCP1CON
+    BSF CCP1CON,5
+    BSF CCP1CON,4
+    BANKSEL CCPR1L
+    MOVLW .255
+    MOVWF CCPR1L
+    BANKSEL PORTB
+    BSF PORTB,2
+    BCF PORTB,3
+    RETURN
 
-ISR_EMERGENCIA
-
+PARO_EMERGENCIA
+    CALL APAGAR_MOTOR
+    BANKSEL INTCON
     BCF INTCON,INTF
+    RETURN
 
-    CALL PWM_OFF
-    BCF PORTA,1      ; verde OFF
-    BSF PORTA,2      ; rojo ON
+;se llama cada 10 ms desde la ISR de Timer0.
+CHEQUEAR_BOTONES
+    BANKSEL PORTB
+    BTFSS PORTB,0       
+    GOTO BOTON_EMERG_ACTIVO
 
-    BSF FLAGS,1       ; FLAG_EMERGENCY = 1
+    BTFSC PORTB,1       
+    RETURN
 
-    GOTO RECUPERAR_CONTEXTO
+    BANKSEL FLAGS
+    BSF FLAGS,0       
+    RETURN               
 
-;-------------------------------------------------------
+BOTON_EMERG_ACTIVO
+    CALL APAGAR_MOTOR    
+    RETURN
 
-ESPERA_ADC
-    BSF ADCON0,1 ;GO/DONE
-    BTFSC ADCON0,1
-    GOTO ESPERA_ADC
-
-    ;Lectura del resultado (ADCON1=0x80: justificado a derecha, 8 bits utiles en ADRESL)
-    BCF STATUS,RP1 ;bk1
-    BSF STATUS,RP0
-  
-    MOVF ADRESL,W
-    MOVWF ADC_RES
-
-    BCF STATUS,RP1 ;bk0
-    BCF STATUS,RP0
-
-    ;UMBRAL_CM = 5 + (ADC_RES/13)
-    MOVF ADC_RES,W
-    MOVWF TEMP
-    MOVLW .5
-    MOVWF UMBRAL_CM
-
-DIV13
-    MOVLW .13
-    SUBWF TEMP,F
-
-    BTFSS STATUS,C
-    GOTO FIN_DIV13
-
-    INCF UMBRAL_CM,F
-    GOTO DIV13
-
-FIN_DIV13
-
-    ;Conversion a BCD
-    CLRF UMBRAL_DEC
-
+CHEQUEAR_DISTANCIA
+    BANKSEL DIST_CM
     MOVF UMBRAL_CM,W
-    MOVWF UMBRAL_UNI
-
-BCD_LOOP
-    MOVLW .10
-    SUBWF UMBRAL_UNI,F
-
+    SUBWF DIST_CM,W      
     BTFSS STATUS,C
-    GOTO BCD_FIN
+    GOTO DIST_APAGAR     
+    BTFSC STATUS,Z
+    GOTO DIST_APAGAR    
 
-    INCF UMBRAL_DEC,F
-    GOTO BCD_LOOP
-
-BCD_FIN
-    MOVLW .10
-    ADDWF UMBRAL_UNI,F
-
+    BANKSEL FLAGS
+    BTFSS FLAGS,0       
+    RETURN                 
+    CALL ENCENDER_MOTOR
     RETURN
 
-;------------------------------
-
-MEDIR_HCSR04
-    ; Esperar aprox 9us, pulso trigger
-    MOVLW .3
-    MOVWF CONT_DELAY
-    BSF PORTC,0
-
-DELAY_10US
-    DECF CONT_DELAY,1
-    BTFSS STATUS,Z
-    GOTO DELAY_10US
-    BCF PORTC,0           ; fin del pulso TRIG
-
-
-    ; Polling de RC1, esperando que ECHO pase a 1
-
-    MOVLW   .170        ; ~1ms timeout
-    MOVWF   CONT_DELAY
-ESPERAR_ECHO
-    BTFSC   PORTC,RC1
-    GOTO    ECHO_HIGH
-    DECFSZ  CONT_DELAY,F
-    GOTO    ESPERAR_ECHO
-
-    ; Timeout
-    CLRF   DIST_CM
+DIST_APAGAR
+    CALL APAGAR_MOTOR    
     RETURN
-
-
-
-    ; Cuando ECHO = 1:
-    ;   TMR1H = 0, TMR1L = 0 (resetear Timer1)
-    ;   ECHO = 0 o TMR1IF = 1  entonces (timeout ~25ms)
-ECHO_HIGH
-    CLRF TMR1H
-    CLRF TMR1L
-    BCF   PIR1, TMR1IF
-
-ESPERAR_ECHO_BAJA
-    BTFSS   PORTC,RC1
-    GOTO    ECHO_LOW
-    BTFSC   PIR1, TMR1IF
-    GOTO    ECHO_TIMEOUT
-    GOTO    ESPERAR_ECHO_BAJA
-
-ECHO_TIMEOUT
-    CLRF DIST_CM
-    RETURN
-
-
-    ; Cuando ECHO baja (o timeout):
-    ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
-ECHO_LOW
-
-    BCF T1CON, TMR1ON
-    MOVF TMR1H,0
-    MOVWF TMR1_H
-    MOVF TMR1L,0
-    MOVWF TMR1_L
-
-    ; CORREMOS 3 VECES LOS BITS DE LOS REGISTROS
-    BCF STATUS,C ; TMR1 * 2
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    BCF STATUS,C ; TMR1 * 4
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    BCF STATUS,C ;TMR1 * 8
-    RLF TMR1_L,1
-    RLF TMR1_H,1
-
-    ; SUMAMOS LOS ORIGNALES PARA HACER * 9
-    MOVF TMR1L,0
-    ADDWF TMR1_L
-    BTFSC STATUS,C
-    INCF TMR1_H
-    MOVF TMR1H,0
-    ADDWF TMR1_H
-
-    ;dividimos por 512, moviendo solo el registro alto un bit a la derecha, tenemos una tolerancia de +-1cm
-    BCF STATUS,C
-    RRF TMR1_H,1
-    MOVF TMR1_H,0
-    MOVWF DIST_CM
-    BSF T1CON, TMR1ON
-    RETURN
-
-
-;----------------------------------------------
 
 RUTINA_DISPLAY
+    BANKSEL PORTE
     BCF PORTE,0
     BCF PORTE,1
 
+    BANKSEL DISP_SEL
     BTFSS DISP_SEL,0
     GOTO SHOW_DECENAS
-    GOTO SHOW_UNIDADES
 
 SHOW_UNIDADES
-    MOVF UMBRAL_UNI, W
-    CALL BCD_7SEG
+    BANKSEL UMBRAL_UNI
+    MOVF UMBRAL_UNI,W
+    CALL TABLA
+    BANKSEL PORTD
     MOVWF PORTD
-    BSF PORTE,1
-
+    BANKSEL PORTE
+    BSF PORTE,1       
+    BANKSEL DISP_SEL
     BCF DISP_SEL,0
     RETURN
 
 SHOW_DECENAS
+    BANKSEL UMBRAL_DEC
     MOVF UMBRAL_DEC,W
-    CALL BCD_7SEG
+    CALL TABLA
+    BANKSEL PORTD
     MOVWF PORTD
-    BSF PORTE,0
-
+    BANKSEL PORTE
+    BSF PORTE,0       
+    BANKSEL DISP_SEL
     BSF DISP_SEL,0
     RETURN
 
-;------------------------
+;cada 10 llamadas (100 ms): leer ADC, medir sensor, comparar y enviar trama UART
 
-COMPARAR_Y_ACTUAR   ; HU-02
-    ;Comparar DIST_CM con UMBRAL_CM
+RUTINA_CICLO
+    INCF CICLO_CNT,F
+    MOVLW .10
+    SUBWF CICLO_CNT,W
+    BTFSS STATUS,Z
+    GOTO SOLO_RX
 
+    CLRF CICLO_CNT
+    CALL LEER_ADC           
+    CALL MEDIR_SENSOR        
+    CALL CHEQUEAR_DISTANCIA  
+    CALL ENVIAR_TRAMA
+    RETURN
+
+SOLO_RX
+    BTFSC PIR1, RCIF
+    CALL ISR_UART_RX
+    RETURN
+
+LEER_ADC
+    BANKSEL ADCON0
+    BSF ADCON0,GO
+
+ESPERAR_ADC
+    BTFSC ADCON0,GO
+    GOTO ESPERAR_ADC
+
+    BANKSEL ADRESH
+    MOVF ADRESH,W     
+    BANKSEL ADC_RES
+    MOVWF ADC_RES
+
+    CALL MULT_ADC_X20    
+    CALL DIV_PROD_255   
+
+    BANKSEL QUOT
+    MOVLW .5
+    ADDWF QUOT,W
+    BANKSEL UMBRAL_CM
+    MOVWF UMBRAL_CM      
+    
+    BANKSEL BCD_TEMP
     MOVF UMBRAL_CM,W
-    SUBWF DIST_CM,W
+    MOVWF BCD_TEMP        
+    CLRF UMBRAL_DEC
 
-    BTFSS   STATUS, C
-    GOTO    MOTOR_OFF
-    BTFSC   FLAGS, 1
-    GOTO    MOTOR_OFF
-    GOTO    MOTOR_ON
+;conviersión de un número binario a dígitos decimales
+BCD_LOOP
+    MOVLW .10
+    SUBWF BCD_TEMP,W   
+    BTFSS STATUS,C      
+    GOTO BCD_FIN
+    MOVWF BCD_TEMP        
+    INCF UMBRAL_DEC,F
+    GOTO BCD_LOOP
 
-MOTOR_ON
-    CALL    PWM_ON
-    BSF     PORTA, 1  ; LED verde
-    BCF     PORTA, 2  ; LED rojo
-    BSF     FLAGS, 2  ; FLAG_MOTOR
+BCD_FIN
+    MOVF BCD_TEMP, W
+    MOVWF UMBRAL_UNI
     RETURN
 
-MOTOR_OFF
-    CALL    PWM_OFF
-    BCF     PORTA, 1
-    BSF     PORTA, 2
-    BCF     FLAGS, 2
+MULT_ADC_X20
+    BANKSEL PROD_H
+    CLRF PROD_H
+    CLRF PROD_L
+    MOVLW .20
+    MOVWF MULT_CNT
+MULT_LOOP
+    BANKSEL ADC_RES
+    MOVF ADC_RES,W
+    BANKSEL PROD_L
+    ADDWF PROD_L,F
+    BTFSC STATUS,C
+    INCF PROD_H,F
+    BANKSEL MULT_CNT
+    DECFSZ MULT_CNT,F
+    GOTO MULT_LOOP
     RETURN
 
-
-PWM_ON ;(motor 100% duty)
-    MOVLW b'11111111'
-    MOVWF CCPR1L
+DIV_PROD_255
+    BANKSEL QUOT
+    CLRF QUOT
+DIV255_LOOP
+    BANKSEL PROD_H
+    MOVF PROD_H,W
+    BTFSS STATUS,Z
+    GOTO DIV_SUB         
+    MOVLW .255
+    BANKSEL PROD_L
+    SUBWF PROD_L, W
+    BTFSS STATUS, C
+    GOTO DIV_DONE        
+DIV_SUB
+    MOVLW .255
+    BANKSEL PROD_L
+    SUBWF PROD_L,F
+    BTFSS STATUS,C
+    DECF PROD_H,F
+    BANKSEL QUOT
+    INCF QUOT,F
+    GOTO DIV255_LOOP
+DIV_DONE
     RETURN
 
+MEDIR_SENSOR
+    BANKSEL T1CON
+    BCF T1CON,TMR1ON
+    BANKSEL TMR1H
+    CLRF TMR1H
+    CLRF TMR1L
+    BANKSEL PIR1
+    BCF PIR1,TMR1IF
 
-PWM_OFF ;(motor a 0% duty)
-    CLRF CCPR1L
+    BANKSEL PORTC
+    BSF PORTC,0        ;TRIG alto
+    MOVLW .7
+    MOVWF CONT_DELAY
+    
+DELAY_TRIG
+    DECFSZ CONT_DELAY,F
+    GOTO DELAY_TRIG
+    BCF PORTC,0        ;TRIG bajo
+
+    MOVLW .5
+    MOVWF CONT_HI
+    MOVLW .200
+    MOVWF CONT_DELAY
+
+ESPERAR_ECHO_ALTO
+    BANKSEL PORTC
+    BTFSC PORTC,1
+    GOTO ECHO_HIGH
+    BANKSEL CONT_DELAY
+    DECFSZ CONT_DELAY, F
+    GOTO ESPERAR_ECHO_ALTO
+    DECFSZ CONT_HI, F
+    GOTO ESPERAR_ECHO_ALTO_R
+    BANKSEL DIST_CM
+    CLRF DIST_CM
     RETURN
-;-------------------------------
 
-ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm\r\n"
+ESPERAR_ECHO_ALTO_R
+    MOVLW .200
+    MOVWF CONT_DELAY
+    GOTO ESPERAR_ECHO_ALTO
+
+ECHO_HIGH
+    BANKSEL PIR1
+    BCF PIR1,TMR1IF
+    BANKSEL T1CON
+    BSF T1CON,TMR1ON
+
+ESPERAR_ECHO_BAJO
+    BANKSEL PORTC
+    BTFSS PORTC,1
+    GOTO ECHO_LOW
+    BANKSEL PIR1
+    BTFSC PIR1,TMR1IF
+    GOTO ECHO_TIMEOUT
+    GOTO ESPERAR_ECHO_BAJO
+
+;DIST_CM=0
+ECHO_TIMEOUT
+    BANKSEL T1CON
+    BCF T1CON,TMR1ON
+    BANKSEL DIST_CM
+    CLRF DIST_CM
+    RETURN
+
+;calcula la distancia
+ECHO_LOW
+    BANKSEL T1CON
+    BCF T1CON,TMR1ON
+
+    BANKSEL TMR1H
+    MOVF TMR1H,W
+    MOVWF TMR1_H
+    MOVF TMR1L,W
+    MOVWF TMR1_L
+
+    BCF STATUS,C
+    RLF TMR1_L,F    
+    RLF TMR1_H,F
+    BCF STATUS,C
+    RLF TMR1_L,F    
+    RLF TMR1_H,F
+    BCF STATUS,C
+    RLF TMR1_L,F    
+    RLF TMR1_H,F
+
+    MOVF TMR1L,W
+    ADDWF TMR1_L,F
+    BTFSC STATUS,C
+    INCF TMR1_H,F
+    MOVF TMR1H,W
+    ADDWF TMR1_H,F
+
+    BCF STATUS,C
+    RRF TMR1_H,F
+    MOVF TMR1_H,W
+    BANKSEL DIST_CM
+    MOVWF DIST_CM
+    RETURN
+
+ENVIAR_TRAMA
     MOVLW 'D'
     CALL TX_BYTE
     MOVLW ':'
     CALL TX_BYTE
-    ;Emitiendo distancia ACTUAL
-    MOVF DIST_CM,W
+    BANKSEL DIST_CM
+    MOVF DIST_CM, W
     CALL BIN_TO_ASCII
-
     MOVF TX_DEC,W
     CALL TX_BYTE
     MOVF TX_UNI,W
@@ -446,8 +524,6 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm\r\n"
     CALL TX_BYTE
     MOVLW 'm'
     CALL TX_BYTE
-
-    ;emitiendo umbral actual ' U:xxcm'
 
     MOVLW ' '
     CALL TX_BYTE
@@ -455,6 +531,7 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm\r\n"
     CALL TX_BYTE
     MOVLW ':'
     CALL TX_BYTE
+    BANKSEL UMBRAL_CM
     MOVF UMBRAL_CM,W
     CALL BIN_TO_ASCII
     MOVF TX_DEC,W
@@ -466,69 +543,78 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm\r\n"
     MOVLW 'm'
     CALL TX_BYTE
 
-END_TRAMA
-    ;FIN TRAMA
-    MOVLW 0X0D
+    MOVLW b'00001101'
     CALL TX_BYTE
-    MOVLW 0X0A
+    MOVLW b'00001010'
     CALL TX_BYTE
-
-    RETURN ;VOLVEMOS AL DISPACHER PARA LOS DEMAS PROCESOS
+    RETURN
 
 TX_BYTE
-    MOVWF   TEMP
-    BCF     STATUS, RP1
-    BSF     STATUS, RP0     ; BANK 1
+    MOVWF TEMP
+    BANKSEL TXSTA
 TX_WAIT
-    BTFSS   TXSTA, TRMT
-    GOTO    TX_WAIT
-    MOVF    TEMP, W
-    BCF     STATUS, RP1
-    BCF     STATUS, RP0     ; BANK 0
-    MOVWF   TXREG
+    BTFSS TXSTA,TRMT
+    GOTO TX_WAIT
+    BANKSEL TXREG
+    MOVF TEMP,W
+    MOVWF TXREG
+    BANKSEL DIST_CM
     RETURN
 
+;Convierte binario a ASCII
 BIN_TO_ASCII
-    MOVWF   TEMP
-    CLRF    TX_DEC
+    MOVWF TEMP
+    CLRF TX_DEC
 BIN_DEC_LOOP
-    MOVLW   .10
-    SUBWF   TEMP, W
-    BTFSS   STATUS, C
-    GOTO    BIN_DEC_DONE
-    MOVWF   TEMP
-    INCF    TX_DEC, F
-    GOTO    BIN_DEC_LOOP
+    MOVLW .10
+    SUBWF TEMP,W
+    BTFSS STATUS,C
+    GOTO BIN_DEC_DONE
+    MOVWF TEMP
+    INCF TX_DEC,F
+    GOTO BIN_DEC_LOOP
 BIN_DEC_DONE
-    MOVLW   '0'
-    ADDWF   TEMP, W
-    MOVWF   TX_UNI
-    MOVF    TX_DEC, W
-    ADDLW   '0'
-    MOVWF   TX_DEC
+    MOVLW '0'
+    ADDWF TEMP,W
+    MOVWF TX_UNI
+    MOVF TX_DEC,W
+    ADDLW '0'
+    MOVWF TX_DEC
     RETURN
-;-------------------------------
 
+ISR_UART_RX
+    BANKSEL RCSTA
+    BTFSS RCSTA,OERR
+    GOTO CHECK_CMD
+    BCF RCSTA,CREN
+    BSF RCSTA,CREN
+    BANKSEL DIST_CM
+    RETURN
 
-PWM_INIT
+CHECK_CMD
+    BANKSEL RCREG
+    MOVF RCREG,W
+    BANKSEL TEMP
+    MOVWF TEMP
 
-    MOVLW b'00000100'
-    MOVWF T2CON
+    MOVLW 'R'
+    SUBWF TEMP,W
+    BTFSC STATUS,Z
+    GOTO CMD_REANUDAR
 
-    BCF STATUS,RP1 ;BK1
-    BSF STATUS,RP0
+    MOVLW 'P'
+    SUBWF TEMP,W
+    BTFSC STATUS,Z
+    GOTO CMD_PARAR
+    RETURN
 
-    MOVLW b'11111111'
-    MOVWF PR2
+CMD_REANUDAR
+    BANKSEL FLAGS
+    BSF FLAGS,0
+    RETURN
 
-    BCF STATUS,RP1 ;BK0
-    BCF STATUS,RP0
-
-
-    MOVLW b'00001100'
-    MOVWF CCP1CON
-
-    CLRF CCPR1L
+CMD_PARAR
+    CALL APAGAR_MOTOR
     RETURN
 
     END

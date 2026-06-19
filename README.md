@@ -1,12 +1,16 @@
-# Sierra Segura — PIC16F887
+# Sierra Segura — PIC16F887 1.0.1
 Electrónica Digital II - Universidad Nacional de Córdoba 
 - Integrantes: Piren Amancay Rios Painefil / Juan Cruz Sanchez Oliveto / Ariana Agostina Sureda
 - Profesor: Marcos Blasco
 
 ---
+
 ## 1. Descripción general del proyecto
 
-El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes. Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata. Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
+El sistema mide continuamente la distancia entre la mano del operario y la hoja de sierra usando un HC-SR04. Si la distancia detectada es menor que un umbral de seguridad configurable, el sistema detiene automáticamente el motor para reducir el riesgo de accidentes. 
+Además, dispone de un botón de emergencia que permite detener el motor de forma inmediata. 
+Este proyecto busca aumentar la seguridad durante la operación de máquinas con elementos de corte. 
+Está orientado al desarrollo de prototipos que requieran implementar sistemas básicos de seguridad y control utilizando microcontroladores.
 
 ### Alcances del proyecto
 
@@ -30,6 +34,31 @@ El sistema no incluye:
 
 
 ---
+
+# Lista de componentes necesitados
+
+| Componente | Cantidad | Notas |
+|------------|----------|-------|
+| PIC16F887 | 1 | DIP-40 |
+| Cristal 4 MHz | 1 | + 2 capacitores 22 pF |
+| HC-SR04 | 1 | Sensor ultrasónico |
+| Potenciómetro 10 kΩ | 1 | Ajuste de umbral |
+| Motor DC 5V | 1 | Simulación de sierra |
+| Transistor 2n222a (o TIP120) | 1 | Driver PWM del motor |
+| Diodo 1N4007 | 1 | Flyback del motor |
+| Resistencia 1 kΩ | 1 | Base del transistor driver |
+| Transistor BC547 | 2 | Selectores displays |
+| Display 7 segmentos cátodo común | 2 | Dígito decenas y unidades |
+| Resistencias 330 Ω | 7 | Una por segmento |
+| Resistencias 1 kΩ | 2 | Base transistores selectores |
+| LED verde | 1 | Estado operación |
+| LED rojo | 1 | Estado alarma/emergencia |
+| Resistencias 470 Ω | 2 | LEDs |
+| Pulsador NO | 1 | Botón emergencia |
+| Adaptador USB-TTL | 1 | Comunicación serie con PC |
+
+---
+
 ## 2. Arquitectura del sistema: Hardware y Software
 
 ### Hardware & Interconexión
@@ -38,6 +67,7 @@ El sistema no incluye:
 <img width="674" height="524" alt="5017097186071743561" src="https://github.com/user-attachments/assets/fa9fe912-05cc-4f03-8d32-a27f671b9c82" />
 
 ### Arquitectura de software
+
 ```mermaid
 flowchart TD
 
@@ -106,6 +136,7 @@ flowchart TD
 ```
 
 ---
+
 ## 3. Especificaciones eléctricas, alimentación y entorno
 
 ### Parámetros de alimentación y consumo 
@@ -114,36 +145,45 @@ flowchart TD
 - Consumo estimado en modo activo: Aprox. de 200 a 250 mA
 
 ### Entorno
-- Herramientas de software: MPLAB X IDE y ensamblador MPASM.
+- Herramientas de software: MPLAB X IDE 5.35 y ensamblador MPASM.
 - Método de programación: UART.
 - Configuración de bits: 
    * PWRTE: ON
    * MCLRE: ON
    * BOREN: ON
    * WDT: OFF
-   * FOSC HS (oscilador ext): OFF
+   * FOSC HS: OFF
    
 - Periféricos internos utilizados: ADC / CCP1 / TIMER0 / TIMER1 / TIMER2 / EUSART / PWM
 - Gestión de interrupciones: El sistema utiliza el único vector de interrupción disponible en el PIC16F887. La interrupción externa INT0 asociada al botón de emergencia tiene prioridad, ya que representa la condición más crítica del sistema. Ante su activación, el motor se detiene inmediatamente para garantizar la seguridad del operario.
 
 ---
+
 ## 4. Proceso de integración y desarrollo 
 
 - Etapa 1 (validacion inicial): Se realizó la verificación de los puertos del microcontrolador que se iban a utilizar en el proyecto y se configuraron. Posteriormente, se efectuó la prueba del sensor ultrasónico HC-SR04 para verificar su correcto funcionamiento
 - Etapa 2 (adquisición/comunicación): Se implementó la lectura del ADC para obtener el valor del potenciómetro que se usa como umbral de seguridad. También se agregó la comunicación UART para poder enviar datos a la PC y facilitar la depuración del sistema. Además, en esta etapa también se comenzaron a revisar y diseñar las rutinas de servicio de interrupción necesarias para el funcionamiento del mismo.
 - Etapa 3 (integración lógica): Se desarrolló la lógica principal del sistema, comparando la distancia medida por el HC-SR04 con el umbral configurado. Además, se implementó el control del motor mediante PWM y el uso de la interrupción externa para el botón de emergencia.
 - Etapa 4 (sistema completo): Se integraron todos los módulos desarrollados previamente, verificando el funcionamiento conjunto. También se realizó la simulación completa del sistema en Proteus para verificar su comportamiento antes de la implementación final.
+
 <img width="1920" height="2560" alt="5017097186071743562" src="https://github.com/user-attachments/assets/07cf246f-33d9-4eb2-86a6-eab31dd1906d" />
 
 
 ---
+
 ## 5. Ensayos, pruebas y resultados 
 ### Testeo del funcionamiento del sensor 
+
 <img width="1600" height="1200" alt="5017097186071743558" src="https://github.com/user-attachments/assets/5a077eb7-b291-4af7-9305-3c1e3902c2a7" />
+
 <img width="1600" height="1200" alt="5017097186071743557" src="https://github.com/user-attachments/assets/5e81646b-ee7d-4486-9b66-54998fd31483" />
+
+- Aca podemos ver la señal echo del sensor en el canal dos del osciloscopio, como se ve la señal expandiendose en el tiempo conforme un objeto de aleja
+
 <img width="1600" height="1200" alt="5017097186071743556" src="https://github.com/user-attachments/assets/b8f6ea88-ddcd-4c88-9a74-9361ec7a4712" />
 
 ### Sistema completo
+
 <img width="1920" height="2560" alt="5017097186071743563" src="https://github.com/user-attachments/assets/eec8f813-8a7f-40d9-a47e-52c4e14c5de2" />
 
 
@@ -267,27 +307,6 @@ Suficiente para un motor DC pequeño sin ruido audible molesto.
 
 No se usa velocidad variable en este TP; el PWM actúa como switch por software, pero deja la infraestructura lista para agregar control de velocidad.
 
-```asm
-; --- Configuración PWM (CCP1 en RC2) ---
-BANKSEL PR2
-MOVLW   0xFF
-MOVWF   PR2             ; periodo máximo
-
-BANKSEL T2CON
-MOVLW   0x04            ; Timer2 ON, prescaler 1:1
-MOVWF   T2CON
-
-BANKSEL CCP1CON
-MOVLW   0x0C            ; modo PWM
-MOVWF   CCP1CON
-
-BANKSEL CCPR1L
-MOVLW   0x00            ; duty = 0% (motor apagado)
-MOVWF   CCPR1L
-
-; Motor ON:  MOVLW 0xFF → MOVWF CCPR1L
-; Motor OFF: MOVLW 0x00 → MOVWF CCPR1L
-```
 
 ---
 
@@ -313,49 +332,6 @@ sequenceDiagram
 
 ---
 
-## Configuración de registros
-
-```asm
-; --- ADC ---
-BANKSEL ADCON1
-MOVLW   0x80        ; Vref=VDD, justificado derecha
-MOVWF   ADCON1
-BANKSEL ADCON0
-MOVLW   0x01        ; Canal AN0, ADC ON
-MOVWF   ADCON0
-
-; --- Timer0: ~10 ms a 4 MHz ---
-BANKSEL OPTION_REG
-MOVLW   0x05        ; prescaler 1:64
-MOVWF   OPTION_REG
-
-; --- Timer1: medición ECHO ---
-BANKSEL T1CON
-MOVLW   0x01        ; Timer1 ON, prescaler 1:1 → 1 tick = 1 µs
-MOVWF   T1CON
-
-; --- Timer2 + CCP1: PWM ---
-; (ver sección PWM arriba)
-
-; --- UART: 9600 bps, 8N1, BRGH=1 ---
-BANKSEL TXSTA
-MOVLW   0x24
-MOVWF   TXSTA
-BANKSEL RCSTA
-MOVLW   0x90
-MOVWF   RCSTA
-BANKSEL SPBRG
-MOVLW   0x19        ; SPBRG=25 → 9600 bps exactos a 4 MHz
-MOVWF   SPBRG
-
-; --- Interrupciones ---
-MOVLW   0xB0        ; GIE=1, TMR0IE=1, INTE=1
-MOVWF   INTCON
-BCF     OPTION_REG, INTEDG  ; INT0 por flanco descendente
-```
-
----
-
 ## Tabla de registros clave
 
 | Registro | Valor | Descripción |
@@ -377,50 +353,22 @@ BCF     OPTION_REG, INTEDG  ; INT0 por flanco descendente
 
 ---
 
-## Tabla lookup 7 segmentos
+## Tabla binario → 7 segmentos (cátodo común, `gfedcba`)
 
-Orden `gfedcba`, cátodo común, activo en alto.
+| Dígito | Binario (`gfedcba`) | Hex | Segmentos encendidos |
+|--------|---------------------|-----|----------------------|
+| 0      | `0111111`           | 0x3F | a,b,c,d,e,f          |
+| 1      | `0000110`           | 0x06 | b,c                  |
+| 2      | `1011011`           | 0x5B | a,b,d,e,g            |
+| 3      | `1001111`           | 0x4F | a,b,c,d,g            |
+| 4      | `1100110`           | 0x66 | b,c,f,g              |
+| 5      | `1101101`           | 0x6D | a,c,d,f,g            |
+| 6      | `1111101`           | 0x7D | a,c,d,e,f,g          |
+| 7      | `0000111`           | 0x07 | a,b,c                |
+| 8      | `1111111`           | 0x7F | a,b,c,d,e,f,g        |
+| 9      | `1101111`           | 0x6F | a,b,c,d,f,g          |
 
-```asm
-BCD_7SEG:
-    ADDWF   PCL, F      ; W = dígito (0–9)
-    RETLW   0x3F        ; 0
-    RETLW   0x06        ; 1
-    RETLW   0x5B        ; 2
-    RETLW   0x4F        ; 3
-    RETLW   0x66        ; 4
-    RETLW   0x6D        ; 5
-    RETLW   0x7D        ; 6
-    RETLW   0x07        ; 7
-    RETLW   0x7F        ; 8
-    RETLW   0x6F        ; 9
-```
-
----
-
-## Rutina de multiplexado
-
-```asm
-RUTINA_DISPLAY:
-    BCF     PORTE, RE0          ; apagar ambos (anti-ghosting)
-    BCF     PORTE, RE1
-    BTFSS   DISP_SEL, 0
-    GOTO    SHOW_DEC
-SHOW_UNI:
-    MOVF    UMBRAL_UNI, W
-    CALL    BCD_7SEG
-    MOVWF   PORTD
-    BSF     PORTE, RE1
-    BSF     DISP_SEL, 0
-    RETURN
-SHOW_DEC:
-    MOVF    UMBRAL_DEC, W
-    CALL    BCD_7SEG
-    MOVWF   PORTD
-    BSF     PORTE, RE0
-    BCF     DISP_SEL, 0
-    RETURN
-```
+> **Implementación en ASM**: ver `BCD_7SEG` en `tpFinal.asm` (usa `RETLW` con esta misma tabla).
 
 ---
 
@@ -431,6 +379,13 @@ SHOW_DEC:
 D:12cm U:08cm\r\n
 D:05cm U:08cm\r\n
 ```
+
+*RX (PC -> PIC)* cada 10ms:
+Se produce un pooling del bufer de entrada del usart del pic para revisar comandos entrantes
+
+R->buffer ->(Reanudar)
+P->buffer ->(Parar)
+
 ---
 
 ## Variables RAM (Bank 0)
@@ -451,6 +406,28 @@ bit 0 = FLAG_TX        ; enviar trama UART
 bit 1 = FLAG_EMERGENCY ; paro de emergencia activo
 bit 2 = FLAG_MOTOR     ; estado actual del motor
 ```
+
+---
+
+## UI 0.1.1
+Se desarrollo un simple frontend utilizando las tecnoligias de Svelte, Vite, Tailwind y Shadcn para el desarrollo de los componentes del frontend
+
+La ui destaca por la posibilidad de ver en vivo la distancia actual, el umbral de corte y una terminal de entrada para ver la comunicacion serial entrante
+
+<img width="1873" height="816" alt="Screenshot 2026-06-18 224443" src="https://github.com/user-attachments/assets/dd5702d8-6353-4abb-9216-2e149a977f32" />
+
+
+Ademas, en caso de superarse el umbral, el recuadro de distancia actual muestra un mensaje por pantalla y cambia de color a rojo
+
+<img width="1875" height="956" alt="Screenshot 2026-06-18 230948" src="https://github.com/user-attachments/assets/60d4b1a4-7ecc-43f5-882a-69321a5c5237" />
+
+
+Tambien se ofrece la posibilidad de enviar los comandos de Reanudad y Parar directamente desde la ui, mostrando el ultimo comando envidado.
+
+<img width="932" height="192" alt="Screenshot 2026-06-19 170123" src="https://github.com/user-attachments/assets/ebc5c7c7-8e6b-4267-9418-d2c67f9d5ac0" />
+
+
+Por otro lado en caso de no disponer de un pic se puede entrar en un modo simulacion que muestra numeros aleatorios simulando los datos de telemetria
 
 ---
 
