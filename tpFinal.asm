@@ -63,10 +63,6 @@ MAIN
     MOVLW 0x01        ; ADCS=01 (Tad=2us), CHS=000 (AN0), ADON=1
     MOVWF ADCON0
 
-    ;TX
-    MOVLW 0x90
-    MOVWF RCSTA
-
     ;-------------BK1-------------
     BCF STATUS,RP1
     BSF STATUS,RP0
@@ -185,7 +181,7 @@ CICLO
     MOVLW .10
     SUBWF CICLO_CNT,W
     BTFSS STATUS,Z
-    GOTO REVISA_RX
+    NOP
     CLRF CICLO_CNT
 
     ; <<< cada 100ms: LEER_ADC, MEDIR_HCSR04, COMPARAR_Y_ACTUAR >>>
@@ -195,10 +191,6 @@ CICLO
     CALL ENVIAR_TRAMA
     GOTO RECUPERAR_CONTEXTO
 
-REVISA_RX
-    BTFSC PIR1, RCIF
-    CALL ISR_UART_RX
-    GOTO RECUPERAR_CONTEXTO
 
 RECUPERAR_CONTEXTO
     SWAPF STATUS_TEMP,W
@@ -329,8 +321,6 @@ ECHO_TIMEOUT
     RETURN
 
 
-
-
     ; Cuando ECHO baja (o timeout):
     ; Si timeout (TMR1IF): DIST_CM = 0xFF (error/desconectado)
 ECHO_LOW
@@ -439,7 +429,7 @@ PWM_OFF ;(motor a 0% duty)
     RETURN
 ;-------------------------------
 
-ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
+ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm\r\n"
     MOVLW 'D'
     CALL TX_BYTE
     MOVLW ':'
@@ -476,31 +466,7 @@ ENVIAR_TRAMA ; emitir "D:XXcm U:XXcm M:XX\r\n"
     MOVLW 'm'
     CALL TX_BYTE
 
-    ;emitiendo estado motor
-    MOVLW ' '
-    CALL TX_BYTE
-    MOVLW 'M'
-    CALL TX_BYTE
-    MOVLW ':'
-    CALL TX_BYTE
-    BTFSS FLAGS,2
-    GOTO MOTOR_STATE_OFF
-MOTOR_STATE_ON
-    MOVLW 'O'
-    CALL TX_BYTE
-    MOVLW 'N'
-    CALL TX_BYTE
-    GOTO END_MOTOR
-
-MOTOR_STATE_OFF
-    MOVLW 'O'
-    CALL TX_BYTE
-    MOVLW 'O'
-    CALL TX_BYTE
-    MOVLW 'F'
-    CALL TX_BYTE
-END_MOTOR
-
+END_TRAMA
     ;FIN TRAMA
     MOVLW 0X0D
     CALL TX_BYTE
@@ -541,59 +507,6 @@ BIN_DEC_DONE
     ADDLW   '0'
     MOVWF   TX_DEC
     RETURN
-
-;---------ISR DE RECEPCION---------------
-
-ISR_UART_RX
-    BTFSS   RCSTA, OERR ;ERROR DE RECEPCION?
-    GOTO    CHECK_CMD
-
-    ; Resetear OERR
-    BCF     RCSTA, CREN
-    BSF     RCSTA, CREN
-    RETURN
-
-CHECK_CMD
-    ;VER BYTE RECIBIDO
-    MOVF    RCREG, W
-    MOVWF   TEMP
-
-    ; �Es 'R' (0x52)?  reanudar
-    MOVLW   'R'
-    SUBWF   TEMP, W
-    BTFSC   STATUS, Z
-    GOTO    CMD_REANUDAR
-
-    ; �Es 'P' (0x50)?
-    MOVLW   'P'
-    SUBWF   TEMP, W
-    BTFSC   STATUS, Z
-    GOTO    CMD_PARAR
-
-
-    RETURN
-
-
-CMD_REANUDAR
-    BCF     FLAGS, 1            ; FLAG_EMERGENCY = 0
-
-    BSF     PORTA, 1            ; LED verde ON
-    BCF     PORTA, 2            ; LED rojo OFF
-    CALL PWM_ON
-    RETURN
-
-
-CMD_PARAR
-    ; Cortar motor
-    CALL    PWM_OFF
-
-    BCF     PORTA, 1            ; LED verde OFF
-    BSF     PORTA, 2            ; LED rojo ON
-
-    BSF     FLAGS, 1            ; FLAG_EMERGENCY = 1
-
-    RETURN
-
 ;-------------------------------
 
 
